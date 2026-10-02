@@ -1,0 +1,94 @@
+{
+  "$comment": "Pinned snapshots of every specification this package implements against. Each entry records the exact bytes that were read when the implementation and its tests were written, so a later reader can verify that the clauses quoted in the source still say what the code assumes.",
+  "generated_by": "scripts/check_standards.py",
+  "standards": [
+    {
+      "id": "mermaid-flowchart",
+      "title": "Mermaid — Flowcharts, syntax and configuration",
+      "edition": "mermaid develop branch, docs source",
+      "status": "living",
+      "authority": "https://mermaid.js.org/syntax/flowchart.html",
+      "source_url": "https://raw.githubusercontent.com/mermaid-js/mermaid/develop/packages/mermaid/src/docs/syntax/flowchart.md",
+      "retrieved_at": "2026-10-02T11:36:08Z",
+      "sha256": "3af71671eded9283eb70777bdcbfb83722bf7c2ae4863263cc3699939e5a0447",
+      "size_bytes": 36849,
+      "license": "MIT",
+      "license_url": "https://github.com/mermaid-js/mermaid/blob/develop/LICENSE",
+      "anchors": {
+        "a-node-default": "#a-node-default",
+        "a-node-with-text": "#a-node-with-text",
+        "links-between-nodes": "#links-between-nodes",
+        "an-open-link": "#an-open-link",
+        "a-link-with-arrow-head-and-text": "#a-link-with-arrow-head-and-text",
+        "dotted-link": "#dotted-link",
+        "thick-link": "#thick-link",
+        "direction": "#direction",
+        "subgraphs": "#subgraphs",
+        "special-characters-that-break-syntax": "#special-characters-that-break-syntax",
+        "entity-codes-to-escape-characters": "#entity-codes-to-escape-characters"
+      }
+    },
+    {
+      "id": "mermaid-statediagram",
+      "title": "Mermaid — State diagrams",
+      "edition": "mermaid develop branch, docs source",
+      "status": "living",
+      "authority": "https://mermaid.js.org/syntax/stateDiagram.html",
+      "source_url": "https://raw.githubusercontent.com/mermaid-js/mermaid/develop/packages/mermaid/src/docs/syntax/stateDiagram.md",
+      "retrieved_at": "2026-10-02T11:36:08Z",
+      "sha256": "161c0aa290e79ddd5ced601a36dff946083214d8664bc697b86e1aea0989c583",
+      "size_bytes": 13233,
+      "license": "MIT",
+      "license_url": "https://github.com/mermaid-js/mermaid/blob/develop/LICENSE",
+      "anchors": {
+        "states": "#states",
+        "transitions": "#transitions",
+        "start-and-end": "#start-and-end",
+        "spaces-in-state-names": "#spaces-in-state-names",
+        "setting-the-direction-of-the-diagram": "#setting-the-direction-of-the-diagram",
+        "notes": "#notes",
+        "composite-states": "#composite-states",
+        "choice": "#choice",
+        "forks": "#forks",
+        "concurrency": "#concurrency",
+        "styling-with-classdefs": "#styling-with-classdefs"
+      }
+    },
+    {
+      "id": "gfm",
+      "title": "GitHub Flavored Markdown Spec",
+      "edition": "0.29-gfm (2019-04-06)",
+      "status": "stable",
+      "authority": "https://github.github.com/gfm/",
+      "source_url": "https://raw.githubusercontent.com/github/cmark-gfm/master/test/spec.txt",
+      "retrieved_at": "2026-10-02T11:36:08Z",
+      "sha256": "7d8e5814befec287ac116786d81ff14e0adc9b13295b4494649e995408fd871c",
+      "size_bytes": 216680,
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "anchors": {
+        "tables-extension": "#tables-extension-",
+        "code-spans": "#code-spans",
+        "emphasis-and-strong-emphasis": "#emphasis-and-strong-emphasis",
+        "backslash-escapes": "#backslash-escapes"
+      }
+    },
+    {
+      "id": "linkml-annotations",
+      "title": "LinkML — Annotations",
+      "edition": "linkml documentation, main branch",
+      "status": "living",
+      "authority": "https://linkml.io/linkml/schemas/annotations.html",
+      "source_url": "https://raw.githubusercontent.com/linkml/linkml/main/docs/schemas/annotations.md",
+      "retrieved_at": "2026-10-02T11:36:08Z",
+      "sha256": null,
+      "size_bytes": null,
+      "license": "CC0-1.0",
+      "license_url": "https://github.com/linkml/linkml/blob/main/LICENSE",
+      "anchors": {
+        "annotations": "#annotations"
+      },
+      "note": "Hash not pinned: the LinkML documentation source is reorganised frequently and the normative behaviour this package relies on (annotations are arbitrary key-value pairs) is implemented in linkml-runtime, which is pinned by the dependency constraint instead."
+    }
+  ]
+}

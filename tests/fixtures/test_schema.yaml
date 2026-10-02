@@ -1,0 +1,145 @@
+id: https://example.org/test-workflow
+name: test_workflow
+title: Test Workflow for linkml_mermaid package tests
+description: >-
+  Minimal self-contained schema that exercises all linkml_mermaid features
+  including mermaid_role annotations for auto-discovery.
+  NOT dependent on any downstream schema.
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  test: https://example.org/test-workflow/
+
+default_prefix: test
+default_range: string
+
+imports:
+  - linkml:types
+
+enums:
+  TrafficLightState:
+    description: Traffic light phases
+    permissible_values:
+      RED:
+        description: Stop — vehicles must not proceed
+      YELLOW:
+        description: Caution — prepare to stop or clear intersection
+      GREEN:
+        description: Go — vehicles may proceed
+
+  TrafficGuard:
+    description: Guard conditions for traffic light transitions
+    permissible_values:
+      TIMER_EXPIRED:
+        description: Minimum phase duration has elapsed
+      SENSOR_TRIGGERED:
+        description: Vehicle or pedestrian sensor activated
+
+classes:
+  TrafficWorkflow:
+    description: A traffic light state machine
+    annotations:
+      mermaid_diagram: stateDiagram-v2
+    attributes:
+      states:
+        range: TrafficState
+        multivalued: true
+        inlined_as_list: true
+        annotations:
+          mermaid_role: states
+      transitions:
+        range: TrafficTransition
+        multivalued: true
+        inlined_as_list: true
+        annotations:
+          mermaid_role: transitions
+      guards:
+        range: TrafficGuardDef
+        multivalued: true
+        inlined_as_list: true
+        annotations:
+          mermaid_role: guard_list
+
+  TrafficState:
+    description: A traffic light state
+    attributes:
+      display_name:
+        required: true
+        description: Human-readable name shown in diagrams
+        annotations:
+          mermaid_role: label
+          table_column: "State|bold"
+      id:
+        range: TrafficLightState
+        required: true
+        annotations:
+          mermaid_role: state_id
+          table_column: "Description"
+      is_initial:
+        range: boolean
+        description: Whether this is the start state
+        annotations:
+          mermaid_role: initial
+      is_terminal:
+        range: boolean
+        description: Whether this is a terminal state
+        annotations:
+          mermaid_role: terminal
+      color:
+        description: CSS color for the state badge
+        annotations:
+          table_column: "Color"
+
+  TrafficTransition:
+    description: A transition between traffic light states
+    attributes:
+      name:
+        required: true
+        description: Human-readable transition label
+        annotations:
+          mermaid_role: transition_label
+          table_column: "Transition"
+      from_state:
+        range: TrafficLightState
+        required: true
+        annotations:
+          mermaid_role: from_state
+          table_column: "From"
+      to_state:
+        range: TrafficLightState
+        required: true
+        annotations:
+          mermaid_role: to_state
+          table_column: "To"
+      default_actor:
+        description: Actor label for this transition
+        annotations:
+          mermaid_role: actor
+          table_column: "Actor"
+      guards:
+        range: TrafficGuard
+        multivalued: true
+        description: Guard conditions
+        annotations:
+          mermaid_role: guards
+          table_column: "Guard / Condition"
+
+  TrafficGuardDef:
+    description: A guard condition definition
+    attributes:
+      id:
+        range: TrafficGuard
+        required: true
+        identifier: true
+        annotations:
+          mermaid_role: guard_id
+      display_name:
+        required: true
+        description: Human-readable guard label
+        annotations:
+          mermaid_role: guard_label
+          table_column: "Guard|code"
+      description:
+        required: true
+        annotations:
+          table_column: "Description"

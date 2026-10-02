@@ -1,0 +1,187 @@
+# linkml_mermaid Annotation Vocabulary
+#
+# This schema defines the annotation keys and values that linkml_mermaid
+# recognizes when auto-discovering how to render a state diagram from a
+# user's LinkML schema.
+#
+# Users annotate their own schema slots with:
+#     annotations:
+#       mermaid_role: <MermaidRole value>
+#       table_column: "Header Text"          # optional: include in tables
+#       table_column: "Header Text|bold"     # optional: with format
+#
+# Then call SchemaReader.discover_state_diagram_config() to auto-build
+# the rendering configuration — zero manual wiring needed.
+# Call SchemaReader.discover_table_columns() to auto-build ColumnDef
+# lists for markdown table rendering.
+#
+# Specification references:
+#   LinkML §Annotations:
+#     https://linkml.io/linkml/schemas/annotations.html
+#     "The LinkML metamodel has a generic annotations slot that can be
+#      used to assign arbitrary tags and values to any schema element."
+#
+#   Mermaid stateDiagram-v2:
+#     https://mermaid.js.org/syntax/stateDiagram.html
+#     Each MermaidRole value maps to a specific Mermaid concept.
+#
+#   GFM §4.10 Tables:
+#     https://github.github.com/gfm/#tables-extension-
+#     table_column annotations drive markdown table generation.
+
+id: https://ascs-ev.github.io/linkml-mermaid/vocab
+name: linkml_mermaid_vocab
+title: linkml_mermaid Annotation Vocabulary
+description: >-
+  Defines the annotation keys and permissible values that the
+  linkml_mermaid package uses to auto-discover state diagram
+  configuration from a LinkML schema.
+version: 0.1.0
+
+prefixes:
+  linkml: https://w3id.org/linkml/
+  mermaid: https://ascs-ev.github.io/linkml-mermaid/vocab/
+
+default_prefix: mermaid
+default_range: string
+
+imports:
+  - linkml:types
+
+enums:
+
+  MermaidRole:
+    description: >-
+      Values for the ``mermaid_role`` annotation on LinkML class attributes.
+      Each value declares what Mermaid stateDiagram-v2 concept the
+      annotated slot represents.
+    permissible_values:
+
+      # ── State class slots ────────────────────────────────────────
+
+      state_id:
+        description: >-
+          The slot holding the state enum identifier.
+          Mapped to MermaidState.id after PascalCase conversion.
+          Spec: §States — https://mermaid.js.org/syntax/stateDiagram.html#states
+
+      label:
+        description: >-
+          Human-readable display name for a state or guard.
+          When label differs from id, rendered as ``StateId : Label``
+          (colon form per §States).
+          Spec: §States — https://mermaid.js.org/syntax/stateDiagram.html#states
+
+      initial:
+        description: >-
+          Boolean slot marking a state as the start state.
+          Renders as ``[*] --> StateId`` per §Start and End.
+          Spec: §Start and End — https://mermaid.js.org/syntax/stateDiagram.html#start-and-end
+
+      terminal:
+        description: >-
+          Boolean slot marking a state as a stop/final state.
+          Renders as ``StateId --> [*]`` per §Start and End.
+          Spec: §Start and End — https://mermaid.js.org/syntax/stateDiagram.html#start-and-end
+
+      # ── Transition class slots ───────────────────────────────────
+
+      from_state:
+        description: >-
+          Source state identifier for a transition.
+          Spec: §Transitions — https://mermaid.js.org/syntax/stateDiagram.html#transitions
+
+      to_state:
+        description: >-
+          Target state identifier for a transition.
+          Spec: §Transitions — https://mermaid.js.org/syntax/stateDiagram.html#transitions
+
+      transition_label:
+        description: >-
+          Human-readable name/label for a transition.
+          Rendered as ``From --> To : label`` per §Transitions.
+          Spec: §Transitions — https://mermaid.js.org/syntax/stateDiagram.html#transitions
+
+      actor:
+        description: >-
+          Default actor/role label for a transition (e.g. "[Reviewer]").
+          Appended to the transition label text.
+
+      guards:
+        description: >-
+          Multivalued slot holding guard condition identifiers.
+          Each guard is resolved to a display name and appended
+          to the transition label after a ``\\n`` separator.
+
+      # ── Guard class slots ────────────────────────────────────────
+
+      guard_id:
+        description: >-
+          The identifier slot on a guard condition class.
+
+      guard_label:
+        description: >-
+          Human-readable display name for a guard condition.
+          Shown in transition labels as ``{Guard name}``.
+
+      # ── Workflow container slots ─────────────────────────────────
+
+      states:
+        description: >-
+          Multivalued slot on the workflow container class that
+          holds the list of state instances.
+
+      transitions:
+        description: >-
+          Multivalued slot on the workflow container class that
+          holds the list of transition instances.
+
+      guard_list:
+        description: >-
+          Multivalued slot on the workflow container class that
+          holds the list of guard definition instances.
+
+  MermaidDiagramType:
+    description: >-
+      Values for the ``mermaid_diagram`` annotation on a LinkML class.
+      Declares which Mermaid diagram type this class should render as.
+
+      Only ``stateDiagram-v2`` is listed: it is the only diagram type
+      that ``SchemaReader.discover_state_diagram_config`` can configure
+      from annotations alone. Flowcharts are rendered through the
+      programmatic ``FlowchartRenderer`` API and have no annotation-driven
+      discovery, so declaring a ``flowchart`` value here would promise
+      behaviour the package does not implement.
+    permissible_values:
+      stateDiagram-v2:
+        description: >-
+          Mermaid state diagram v2.
+          Spec: https://mermaid.js.org/syntax/stateDiagram.html
+
+  AnnotationKey:
+    description: >-
+      The annotation tag names that linkml_mermaid reads from a schema.
+
+      Per LinkML §Annotations, annotations are arbitrary key-value pairs,
+      so these names are a convention rather than a metamodel construct.
+      They are unprefixed, following the precedent set by LinkML's own
+      ``SQLTableGenerator`` (which reads ``primary_key`` and ``index``).
+    permissible_values:
+
+      mermaid_role:
+        description: >-
+          Set on a class attribute. Declares which Mermaid concept the
+          slot provides; the value is a ``MermaidRole``.
+
+      mermaid_diagram:
+        description: >-
+          Set on a class. Declares the diagram type the class renders
+          as; the value is a ``MermaidDiagramType``.
+
+      table_column:
+        description: >-
+          Set on a class attribute. Declares that the slot appears as a
+          column in a generated GFM table.
+          Value format: ``"Header"`` or ``"Header|format"``, where
+          format is one of ``plain``, ``bold``, ``code`` or ``italic``.
+          Spec: https://github.github.com/gfm/#tables-extension-

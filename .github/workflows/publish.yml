@@ -1,0 +1,110 @@
+name: Publish
+
+# Publishing is driven by a GitHub Release, not by a tag push, so that
+# the release notes and the artefacts are created in one deliberate act.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify the release is consistent
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.28"
+          enable-cache: true
+
+      - name: Release tag, __version__ and CHANGELOG must agree
+        id: check
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/linkml_mermaid/__init__.py)
+          echo "tag=$tag  __version__=$version"
+          if [ -z "$version" ]; then
+            echo "::error::could not read __version__ from src/linkml_mermaid/__init__.py"
+            exit 1
+          fi
+          if [ "$tag" != "$version" ]; then
+            echo "::error::release tag '$tag' does not match __version__ '$version'"
+            exit 1
+          fi
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$version]' section"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: uv sync --locked --group dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type check (mypy --strict)
+        run: uv run mypy --strict src
+
+      - name: Test (pytest)
+        run: uv run pytest --cov --cov-fail-under=95
+
+      - name: Validate the standards record
+        run: uv run python scripts/check_standards.py
+
+  build:
+    name: Build distributions
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.28"
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Check distribution metadata
+        run: uvx twine check --strict dist/*
+
+      - name: Built version must match the release
+        run: |
+          ls dist/
+          test -f "dist/linkml_mermaid-${{ needs.verify.outputs.version }}.tar.gz"
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Trusted Publishing: PyPI authenticates this workflow through OIDC,
+    # so there is no API token to store, rotate or leak.
+    environment:
+      name: pypi
+      url: https://pypi.org/p/linkml-mermaid
+    permissions:
+      id-token: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -1,0 +1,48 @@
+# Instance data for the traffic-light schema in test_schema.yaml.
+#
+# This is the input the CLI renders.  LinkML's own diagram generators
+# read the schema above and draw its *class structure*; this file holds
+# the *instances* whose state machine linkml-mermaid draws.
+
+states:
+  - id: RED
+    display_name: Red
+    is_initial: true
+    is_terminal: false
+    color: "#d32f2f"
+  - id: YELLOW
+    display_name: Yellow
+    is_initial: false
+    is_terminal: false
+    color: "#fbc02d"
+  - id: GREEN
+    display_name: Green
+    is_initial: false
+    is_terminal: false
+    color: "#388e3c"
+
+transitions:
+  - name: Go
+    from_state: RED
+    to_state: GREEN
+    default_actor: "[Timer]"
+    guards:
+      - TIMER_EXPIRED
+  - name: Caution
+    from_state: GREEN
+    to_state: YELLOW
+    default_actor: "[Timer]"
+    guards: []
+  - name: Stop
+    from_state: YELLOW
+    to_state: RED
+    default_actor: "[Timer]"
+    guards: []
+
+guards:
+  - id: TIMER_EXPIRED
+    display_name: Timer expired
+    description: Minimum phase duration has elapsed
+  - id: SENSOR_TRIGGERED
+    display_name: Sensor triggered
+    description: Vehicle or pedestrian sensor activated

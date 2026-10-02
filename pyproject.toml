@@ -1,0 +1,110 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "linkml-mermaid"
+dynamic = ["version"]
+description = "Render Mermaid state diagrams and GFM tables from LinkML instance data"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "BMW AG"},
+]
+keywords = ["linkml", "mermaid", "markdown", "state-diagram", "flowchart", "gfm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Code Generators",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "linkml-runtime>=1.10.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+linkml-mermaid = "linkml_mermaid.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=5.0",
+    "linkml>=1.10.0",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "types-PyYAML>=6.0",
+    "build>=1.0",
+    "twine>=5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ASCS-eV/linkml-mermaid"
+Repository = "https://github.com/ASCS-eV/linkml-mermaid"
+Issues = "https://github.com/ASCS-eV/linkml-mermaid/issues"
+Changelog = "https://github.com/ASCS-eV/linkml-mermaid/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/linkml_mermaid/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/linkml_mermaid"]
+
+# The sdist carries the sources needed to rebuild the package plus the
+# compliance record that substantiates its claims. Tests are deliberately
+# excluded: they depend on scripts/ and the repository documentation, so a
+# shipped copy would fail if anyone ran it, and keeping the distribution
+# to a declared allowlist means development files cannot leak into a
+# published artefact by accident. Run the suite from a checkout.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/docs/standards",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["linkml_mermaid"]
+branch = true
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 99
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+# RUF022: keep the curated, comment-grouped __all__ ordering in __init__.py
+ignore = ["RUF022"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests favour readability over strict style: allow long inline data rows,
+# single-letter comprehension variables, and inline lambdas.
+"tests/**" = ["E501", "E741", "E731"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["linkml_runtime.*"]
+ignore_missing_imports = true

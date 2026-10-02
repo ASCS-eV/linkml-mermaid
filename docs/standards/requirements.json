@@ -1,0 +1,307 @@
+{
+  "$comment": "Maps every implemented feature to the specification clause that defines it, and records the test that proves the implementation matches. 'implemented: false' entries are the explicit non-claims — constructs the specs define that this package deliberately does not emit.",
+  "requirements": [
+    {
+      "id": "FLOW-NODE-DEFAULT",
+      "standard": "mermaid-flowchart",
+      "clause": "A node (default)",
+      "anchor": "a-node-default",
+      "requirement": "A bare identifier declares a node with no text.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/flowchart.py::_render_node_declaration",
+      "tests": [
+        "tests/test_flowchart.py::TestFlowchartNodes",
+        "tests/test_spec_regressions.py::TestNodeShapeValidation::test_plain_rect_node_still_uses_bare_form"
+      ]
+    },
+    {
+      "id": "FLOW-NODE-TEXT",
+      "standard": "mermaid-flowchart",
+      "clause": "A node with text",
+      "anchor": "a-node-with-text",
+      "requirement": "Bracket forms select node shape: [] () ([]) {} {{}} [[]] (()).",
+      "implemented": true,
+      "code": "src/linkml_mermaid/flowchart.py::_SHAPE_BRACKETS",
+      "tests": [
+        "tests/test_flowchart.py::TestFlowchartNodes",
+        "tests/test_spec_regressions.py::TestNodeShapeValidation"
+      ]
+    },
+    {
+      "id": "FLOW-ESCAPE",
+      "standard": "mermaid-flowchart",
+      "clause": "Entity codes to escape characters",
+      "anchor": "entity-codes-to-escape-characters",
+      "requirement": "Characters that break syntax are escaped as #NNN; or by HTML character name; # itself is #35;.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/escaping.py::escape_mermaid_text",
+      "tests": [
+        "tests/test_escaping.py::TestEscapeMermaidText",
+        "tests/test_spec_regressions.py::TestFlowchartLabelEscaping"
+      ]
+    },
+    {
+      "id": "FLOW-LINKS",
+      "standard": "mermaid-flowchart",
+      "clause": "Links between nodes",
+      "anchor": "links-between-nodes",
+      "requirement": "Normal, dotted and thick links with arrow heads.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/flowchart.py::_EDGE_ARROWS",
+      "tests": [
+        "tests/test_flowchart.py::TestFlowchartEdges"
+      ]
+    },
+    {
+      "id": "FLOW-OPEN-LINK",
+      "standard": "mermaid-flowchart",
+      "clause": "Open links",
+      "anchor": "an-open-link",
+      "requirement": "A link may be drawn without an arrow head: A --- B, A -.- B, A === B.",
+      "implemented": false,
+      "reason": "Every edge this package emits is directed, so an undirected link would misrepresent the data. FlowchartEdge has no arrow parameter."
+    },
+    {
+      "id": "FLOW-LINK-TEXT",
+      "standard": "mermaid-flowchart",
+      "clause": "A link with arrow head and text",
+      "anchor": "a-link-with-arrow-head-and-text",
+      "requirement": "Edge labels use the pipe form: A -->|text| B.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/flowchart.py::_render_edge",
+      "tests": [
+        "tests/test_flowchart.py::TestFlowchartEdges"
+      ]
+    },
+    {
+      "id": "FLOW-DIRECTION",
+      "standard": "mermaid-flowchart",
+      "clause": "Direction",
+      "anchor": "direction",
+      "requirement": "TB, TD, BT, RL, LR declared on the flowchart statement.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/flowchart.py::FlowchartRenderer.__init__",
+      "tests": [
+        "tests/test_flowchart.py::TestFlowchartDeclaration"
+      ]
+    },
+    {
+      "id": "FLOW-SUBGRAPH",
+      "standard": "mermaid-flowchart",
+      "clause": "Subgraphs",
+      "anchor": "subgraphs",
+      "requirement": "subgraph id[\"title\"] ... end, grouping member nodes.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/flowchart.py::FlowchartRenderer.render",
+      "tests": [
+        "tests/test_flowchart.py::TestFlowchartSubgraphs",
+        "tests/test_spec_regressions.py::TestSubgraphIntegrity"
+      ]
+    },
+    {
+      "id": "STATE-STATES",
+      "standard": "mermaid-statediagram",
+      "clause": "States",
+      "anchor": "states",
+      "requirement": "A state is declared bare or with a description after a colon.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render",
+      "tests": [
+        "tests/test_state_diagram.py::TestStateDiagramStates"
+      ]
+    },
+    {
+      "id": "STATE-SPACES",
+      "standard": "mermaid-statediagram",
+      "clause": "Spaces in state names",
+      "anchor": "spaces-in-state-names",
+      "requirement": "A state whose description contains spaces is defined with an id first: state \"description\" as id.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/state_diagram.py::to_state_id",
+      "tests": [
+        "tests/test_state_diagram.py::TestToStateId",
+        "tests/test_spec_regressions.py::TestStateLabelEscaping::test_colon_in_label_switches_to_quoted_form"
+      ]
+    },
+    {
+      "id": "STATE-TRANSITIONS",
+      "standard": "mermaid-statediagram",
+      "clause": "Transitions",
+      "anchor": "transitions",
+      "requirement": "From --> To, optionally with : text.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render",
+      "tests": [
+        "tests/test_state_diagram.py::TestStateDiagramTransitions"
+      ]
+    },
+    {
+      "id": "STATE-START-END",
+      "standard": "mermaid-statediagram",
+      "clause": "Start and End",
+      "anchor": "start-and-end",
+      "requirement": "[*] denotes the start and end pseudo-states.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render",
+      "tests": [
+        "tests/test_state_diagram.py::TestStateDiagramStartEnd"
+      ]
+    },
+    {
+      "id": "STATE-DIRECTION",
+      "standard": "mermaid-statediagram",
+      "clause": "Setting the direction of the diagram",
+      "anchor": "setting-the-direction-of-the-diagram",
+      "requirement": "direction TB | BT | RL | LR. TD is not documented for state diagrams.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/state_diagram.py::STATE_DIAGRAM_DIRECTIONS",
+      "tests": [
+        "tests/test_spec_regressions.py::TestStateDiagramDirectionValidation"
+      ]
+    },
+    {
+      "id": "STATE-NOTES",
+      "standard": "mermaid-statediagram",
+      "clause": "Notes",
+      "anchor": "notes",
+      "requirement": "note left of | right of {id} : text.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render",
+      "tests": [
+        "tests/test_state_diagram.py::TestStateDiagramNotes"
+      ],
+      "note": "Only the single-line form. The multi-line 'note right of X\\n ... \\nend note' block form is not emitted."
+    },
+    {
+      "id": "STATE-COMPOSITE",
+      "standard": "mermaid-statediagram",
+      "clause": "Composite states",
+      "anchor": "composite-states",
+      "requirement": "state X { ... } nests a state machine inside a state.",
+      "implemented": false,
+      "reason": "MermaidState has no child-state slot, so there is nothing in the data model to nest. Adding it would change the public type."
+    },
+    {
+      "id": "STATE-CHOICE",
+      "standard": "mermaid-statediagram",
+      "clause": "Choice",
+      "anchor": "choice",
+      "requirement": "state X <<choice>> models a branch point.",
+      "implemented": false,
+      "reason": "Not represented in the data model; a LinkML schema expresses the same thing as guarded transitions, which are supported."
+    },
+    {
+      "id": "STATE-FORK",
+      "standard": "mermaid-statediagram",
+      "clause": "Forks",
+      "anchor": "forks",
+      "requirement": "state X <<fork>> / <<join>> model concurrent splits.",
+      "implemented": false,
+      "reason": "Not represented in the data model."
+    },
+    {
+      "id": "STATE-CONCURRENCY",
+      "standard": "mermaid-statediagram",
+      "clause": "Concurrency",
+      "anchor": "concurrency",
+      "requirement": "-- separates concurrent regions inside a composite state.",
+      "implemented": false,
+      "reason": "Depends on composite states, which are not implemented."
+    },
+    {
+      "id": "STATE-CLASSDEF",
+      "standard": "mermaid-statediagram",
+      "clause": "Styling with classDefs",
+      "anchor": "styling-with-classdefs",
+      "requirement": "classDef and class statements style states.",
+      "implemented": false,
+      "reason": "Styling is a presentation concern the caller can append to the rendered output."
+    },
+    {
+      "id": "GFM-TABLE",
+      "standard": "gfm",
+      "clause": "4.10 Tables (extension)",
+      "anchor": "tables-extension",
+      "requirement": "Header row, delimiter row, data rows; cells delimited by pipes.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/markdown_table.py::MarkdownTableRenderer.render",
+      "tests": [
+        "tests/test_markdown_table.py::TestTableStructure"
+      ]
+    },
+    {
+      "id": "GFM-TABLE-ALIGN",
+      "standard": "gfm",
+      "clause": "4.10 Tables (extension)",
+      "anchor": "tables-extension",
+      "requirement": "A leading or trailing colon in the delimiter row sets left, right or centre alignment.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/types.py::COLUMN_ALIGNMENTS",
+      "tests": [
+        "tests/test_spec_regressions.py::TestColumnAlignment"
+      ]
+    },
+    {
+      "id": "GFM-TABLE-PIPE-ESCAPE",
+      "standard": "gfm",
+      "clause": "4.10 Tables (extension)",
+      "anchor": "tables-extension",
+      "requirement": "A pipe in cell content must be escaped, including inside other inline spans.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/escaping.py::escape_table_cell",
+      "tests": [
+        "tests/test_escaping.py::TestEscapeTableCell",
+        "tests/test_spec_regressions.py::TestTableCellEscaping"
+      ]
+    },
+    {
+      "id": "GFM-TABLE-INLINE-ONLY",
+      "standard": "gfm",
+      "clause": "4.10 Tables (extension)",
+      "anchor": "tables-extension",
+      "requirement": "A cell holds inline content only; the table ends at the first blank line or block structure.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/escaping.py::escape_table_cell",
+      "tests": [
+        "tests/test_spec_regressions.py::TestTableCellEscaping::test_newline_in_value_does_not_terminate_the_table"
+      ]
+    },
+    {
+      "id": "GFM-CODE-SPAN",
+      "standard": "gfm",
+      "clause": "6.3 Code spans",
+      "anchor": "code-spans",
+      "requirement": "Backtick-delimited inline code.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/markdown_table.py::_FORMATTERS",
+      "tests": [
+        "tests/test_markdown_table.py::TestTableFormatting"
+      ]
+    },
+    {
+      "id": "GFM-EMPHASIS",
+      "standard": "gfm",
+      "clause": "6.4 Emphasis and strong emphasis",
+      "anchor": "emphasis-and-strong-emphasis",
+      "requirement": "*text* is emphasis, **text** is strong emphasis.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/markdown_table.py::_FORMATTERS",
+      "tests": [
+        "tests/test_markdown_table.py::TestTableFormatting"
+      ]
+    },
+    {
+      "id": "LINKML-ANNOTATIONS",
+      "standard": "linkml-annotations",
+      "clause": "Annotations",
+      "anchor": "annotations",
+      "requirement": "Annotations are arbitrary key-value pairs attached to schema elements.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/reader.py::SchemaReader",
+      "tests": [
+        "tests/test_reader.py",
+        "tests/test_vocab.py"
+      ]
+    }
+  ]
+}

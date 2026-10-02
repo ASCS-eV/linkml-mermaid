@@ -1,0 +1,8 @@
+# Normalize line endings to LF on commit for all text files.
+* text=auto eol=lf
+
+# Treat common binary types as binary (future-proofing).
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ico binary

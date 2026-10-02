@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.11.28"
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --group dev --python ${{ matrix.python-version }}
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
+
+      - name: Type check (mypy --strict)
+        run: uv run mypy --strict src
+
+      - name: Test (pytest)
+        run: uv run pytest --cov --cov-report=term-missing --cov-fail-under=95
+
+  minimum-versions:
+    name: Minimum supported dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Resolve to the lowest declared versions
+        run: uv sync --group dev --resolution lowest-direct --python 3.11
+
+      - name: Test (pytest)
+        run: uv run --no-sync pytest -q
+
+  standards:
+    name: Standards compliance record
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --group dev
+
+      - name: Validate the standards record
+        run: uv run python scripts/check_standards.py
+
+      - name: Verify pinned specifications still match their sources
+        # The upstream texts are living documents. A failure here means a
+        # quoted clause may have changed and the citations need re-reading;
+        # that is a maintenance signal, not a reason to block a pull
+        # request that did not touch the specifications.
+        continue-on-error: true
+        run: uv run python scripts/check_standards.py --verify-hashes
+
+  wheel:
+    name: Build and verify distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Check distribution metadata
+        run: uvx twine check --strict dist/*
+
+      - name: Verify the sdist excludes development-only files
+        run: |
+          sdist=$(ls dist/*.tar.gz)
+          contents=$(tar -tzf "$sdist")
+          echo "$contents"
+          for unwanted in '/tests/' '/docs/.vitepress/' '/.github/' '/scripts/'; do
+            if echo "$contents" | grep -q -- "$unwanted"; then
+              echo "::error::sdist must not ship $unwanted"
+              exit 1
+            fi
+          done
+
+      - name: Smoke test the built wheel
+        run: |
+          uv venv /tmp/smoke
+          VIRTUAL_ENV=/tmp/smoke uv pip install dist/*.whl
+          VIRTUAL_ENV=/tmp/smoke uv run --no-project python -c "
+          from linkml_mermaid import (
+              MermaidState,
+              MermaidTransition,
+              StateDiagramRenderer,
+          )
+          print(
+              StateDiagramRenderer().render(
+                  [MermaidState(id='Draft'), MermaidState(id='Review')],
+                  [MermaidTransition(from_state='Draft', to_state='Review')],
+              )
+          )
+          "
+          VIRTUAL_ENV=/tmp/smoke uv run --no-project linkml-mermaid --version
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
