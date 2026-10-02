@@ -12,6 +12,7 @@ job so that an offline test run still works.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -92,3 +93,102 @@ class TestStandardsRecord:
                 assert keyword in readme.lower(), (
                     f"{req['id']} ({req['clause']}) is not mentioned in the standards README"
                 )
+
+
+@pytest.fixture(scope="module")
+def coverage_cells() -> list[str]:
+    """Every quoted cell of every row of the coverage table.
+
+    The Status column is excluded: its ``**not** implemented`` is emphasis
+    the generator writes deliberately, not prose quoted from a
+    specification. Rows are split on unescaped pipes only, since an
+    escaped pipe is cell content.
+    """
+    coverage = (STANDARDS / "coverage.md").read_text(encoding="utf-8")
+    quoted_columns = ("Clause", "Requirement", "Implementation")
+    cells: list[str] = []
+    header: list[str] = []
+    for line in coverage.splitlines():
+        if not line.startswith("| ") or set(line) <= set("| :-"):
+            continue
+        row = [cell.strip() for cell in re.split(r"(?<!\\)\|", line.strip("|"))]
+        if row[0] == "Clause":
+            header = row
+            continue
+        assert header, "a table row appeared before its header"
+        cells += [cell for name, cell in zip(header, row, strict=True) if name in quoted_columns]
+    assert cells, "no table rows found in coverage.md"
+    return cells
+
+
+class TestCoverageTableEscaping:
+    """The coverage table quotes specification syntax verbatim.
+
+    It is rendered three times over: as a GFM table, as Markdown inline
+    content, and — because the docs site is VitePress — as a Vue template.
+    Each layer claims some of the characters the clauses are about, so a
+    cell that is not escaped either silently loses the syntax it quotes or
+    fails the site build outright. Both have happened.
+    """
+
+    def test_no_raw_angle_brackets_in_cells(self, coverage_cells):
+        """``<<fork>>`` parsed as an unclosed ``<fork>`` element and broke
+        the VitePress build."""
+        for cell in coverage_cells:
+            assert "<" not in cell and ">" not in cell, (
+                f"unescaped angle bracket would be parsed as a Vue element: {cell!r}"
+            )
+
+    def test_no_raw_braces_in_cells(self, coverage_cells):
+        """``{{}}`` is a Vue interpolation and would be evaluated away."""
+        for cell in coverage_cells:
+            assert "{" not in cell and "}" not in cell, (
+                f"unescaped brace would be read as an interpolation: {cell!r}"
+            )
+
+    def test_markup_characters_are_backslash_escaped(self, coverage_cells):
+        """``*text*`` must survive as asterisks, and ``__init__`` must not
+        turn into bold ``init``."""
+        for cell in coverage_cells:
+            for index, found in enumerate(cell):
+                if found in "*_":
+                    assert index and cell[index - 1] == "\\", (
+                        f"unescaped {found!r} would be read as emphasis: {cell!r}"
+                    )
+
+    def test_pipes_are_escaped(self, coverage_cells):
+        """An unescaped pipe would end the cell early and shift the row."""
+        for cell in coverage_cells:
+            assert "|" not in cell or "\\|" in cell
+
+    def test_escaping_is_exercised_by_the_real_data(self, coverage_cells):
+        """Guard against the checks above passing vacuously if the
+        requirement prose ever stops quoting syntax."""
+        joined = "".join(coverage_cells)
+        assert "&#60;" in joined
+        assert "&#123;" in joined
+        assert r"\*" in joined
+        assert r"\|" in joined
+
+    def test_cell_escaper_is_idempotent_on_plain_text(self):
+        """Prose without syntax in it must pass through untouched."""
+        plain = "Annotations are arbitrary key-value pairs."
+        assert _load_check_standards()._cell(plain) == plain
+
+    def test_cell_escaper_covers_every_hostile_character(self):
+        escaped = _load_check_standards()._cell("state X <<fork>> {{a}} *b* _c_ d|e")
+        for char in "<>{}*_|":
+            index = escaped.find(char)
+            if index != -1:
+                assert escaped[index - 1] == "\\", f"{char!r} survived unescaped in {escaped!r}"
+
+
+def _load_check_standards():
+    """Import the generator by path; ``scripts/`` is not a package."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("check_standards", SCRIPT)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module

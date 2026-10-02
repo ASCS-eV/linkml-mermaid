@@ -162,6 +162,37 @@ def check_anchors(std: dict, body: bytes) -> list[str]:
     ]
 
 
+def _cell(text: str) -> str:
+    """Escape one table cell.
+
+    The requirement prose quotes specification syntax verbatim, so it is
+    full of characters that are themselves markup. Three layers have to be
+    satisfied at once:
+
+    * GFM tables end a cell at an unescaped ``|``.
+    * Markdown would read ``*text*`` as emphasis and swallow the asterisks
+      the clause is actually about.
+    * VitePress compiles the rendered HTML as a Vue template, where ``<<fork>>``
+      parses as an unclosed ``<fork>`` element and ``{{}}`` as an interpolation.
+
+    ``<`` and ``{`` are written as numeric character references, which Markdown
+    renders back to the literal character without Vue ever seeing a tag or a
+    moustache. Everything else is backslash-escaped, which both GFM and
+    VitePress honour.
+    """
+    for literal, escaped in (
+        ("|", r"\|"),
+        ("*", r"\*"),
+        ("_", r"\_"),
+        ("<", "&#60;"),
+        (">", "&#62;"),
+        ("{", "&#123;"),
+        ("}", "&#125;"),
+    ):
+        text = text.replace(literal, escaped)
+    return text
+
+
 def render_coverage(manifest: dict, requirements: dict) -> str:
     titles = {s["id"]: s["title"] for s in manifest["standards"]}
     authority = {s["id"]: s["authority"] for s in manifest["standards"]}
@@ -205,12 +236,12 @@ def render_coverage(manifest: dict, requirements: dict) -> str:
         for req in rows:
             status = "implemented" if req["implemented"] else "**not** implemented"
             detail = req.get("code") or req.get("reason", "")
-            clause = req["clause"].replace("|", r"\|")
+            clause = _cell(req["clause"])
             fragment = anchors[sid].get(req.get("anchor", ""))
             if fragment:
                 clause = f"[{clause}]({authority[sid]}{fragment})"
-            text = req["requirement"].replace("|", r"\|")
-            detail = detail.replace("|", r"\|")
+            text = _cell(req["requirement"])
+            detail = _cell(detail)
             lines.append(f"| {clause} | {text} | {status} | {detail} |")
         lines.append("")
 

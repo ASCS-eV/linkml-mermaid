@@ -21,14 +21,14 @@ it. The hash recorded below is of the exact text that was read.
 
 | Clause | Requirement | Status | Implementation |
 | :--- | :--- | :--- | :--- |
-| [A node (default)](https://mermaid.js.org/syntax/flowchart.html#a-node-default) | A bare identifier declares a node with no text. | implemented | src/linkml_mermaid/flowchart.py::_render_node_declaration |
-| [A node with text](https://mermaid.js.org/syntax/flowchart.html#a-node-with-text) | Bracket forms select node shape: [] () ([]) {} {{}} [[]] (()). | implemented | src/linkml_mermaid/flowchart.py::_SHAPE_BRACKETS |
-| [Entity codes to escape characters](https://mermaid.js.org/syntax/flowchart.html#entity-codes-to-escape-characters) | Characters that break syntax are escaped as #NNN; or by HTML character name; # itself is #35;. | implemented | src/linkml_mermaid/escaping.py::escape_mermaid_text |
-| [Links between nodes](https://mermaid.js.org/syntax/flowchart.html#links-between-nodes) | Normal, dotted and thick links with arrow heads. | implemented | src/linkml_mermaid/flowchart.py::_EDGE_ARROWS |
+| [A node (default)](https://mermaid.js.org/syntax/flowchart.html#a-node-default) | A bare identifier declares a node with no text. | implemented | src/linkml\_mermaid/flowchart.py::\_render\_node\_declaration |
+| [A node with text](https://mermaid.js.org/syntax/flowchart.html#a-node-with-text) | Bracket forms select node shape: [] () ([]) &#123;&#125; &#123;&#123;&#125;&#125; [[]] (()). | implemented | src/linkml\_mermaid/flowchart.py::\_SHAPE\_BRACKETS |
+| [Entity codes to escape characters](https://mermaid.js.org/syntax/flowchart.html#entity-codes-to-escape-characters) | Characters that break syntax are escaped as #NNN; or by HTML character name; # itself is #35;. | implemented | src/linkml\_mermaid/escaping.py::escape\_mermaid\_text |
+| [Links between nodes](https://mermaid.js.org/syntax/flowchart.html#links-between-nodes) | Normal, dotted and thick links with arrow heads. | implemented | src/linkml\_mermaid/flowchart.py::\_EDGE\_ARROWS |
 | [Open links](https://mermaid.js.org/syntax/flowchart.html#an-open-link) | A link may be drawn without an arrow head: A --- B, A -.- B, A === B. | **not** implemented | Every edge this package emits is directed, so an undirected link would misrepresent the data. FlowchartEdge has no arrow parameter. |
-| [A link with arrow head and text](https://mermaid.js.org/syntax/flowchart.html#a-link-with-arrow-head-and-text) | Edge labels use the pipe form: A -->\|text\| B. | implemented | src/linkml_mermaid/flowchart.py::_render_edge |
-| [Direction](https://mermaid.js.org/syntax/flowchart.html#direction) | TB, TD, BT, RL, LR declared on the flowchart statement. | implemented | src/linkml_mermaid/flowchart.py::FlowchartRenderer.__init__ |
-| [Subgraphs](https://mermaid.js.org/syntax/flowchart.html#subgraphs) | subgraph id["title"] ... end, grouping member nodes. | implemented | src/linkml_mermaid/flowchart.py::FlowchartRenderer.render |
+| [A link with arrow head and text](https://mermaid.js.org/syntax/flowchart.html#a-link-with-arrow-head-and-text) | Edge labels use the pipe form: A --&#62;\|text\| B. | implemented | src/linkml\_mermaid/flowchart.py::\_render\_edge |
+| [Direction](https://mermaid.js.org/syntax/flowchart.html#direction) | TB, TD, BT, RL, LR declared on the flowchart statement. | implemented | src/linkml\_mermaid/flowchart.py::FlowchartRenderer.\_\_init\_\_ |
+| [Subgraphs](https://mermaid.js.org/syntax/flowchart.html#subgraphs) | subgraph id["title"] ... end, grouping member nodes. | implemented | src/linkml\_mermaid/flowchart.py::FlowchartRenderer.render |
 
 ## Mermaid — State diagrams
 
@@ -40,15 +40,15 @@ it. The hash recorded below is of the exact text that was read.
 
 | Clause | Requirement | Status | Implementation |
 | :--- | :--- | :--- | :--- |
-| [States](https://mermaid.js.org/syntax/stateDiagram.html#states) | A state is declared bare or with a description after a colon. | implemented | src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render |
-| [Spaces in state names](https://mermaid.js.org/syntax/stateDiagram.html#spaces-in-state-names) | A state whose description contains spaces is defined with an id first: state "description" as id. | implemented | src/linkml_mermaid/state_diagram.py::to_state_id |
-| [Transitions](https://mermaid.js.org/syntax/stateDiagram.html#transitions) | From --> To, optionally with : text. | implemented | src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render |
-| [Start and End](https://mermaid.js.org/syntax/stateDiagram.html#start-and-end) | [*] denotes the start and end pseudo-states. | implemented | src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render |
-| [Setting the direction of the diagram](https://mermaid.js.org/syntax/stateDiagram.html#setting-the-direction-of-the-diagram) | direction TB \| BT \| RL \| LR. TD is not documented for state diagrams. | implemented | src/linkml_mermaid/state_diagram.py::STATE_DIAGRAM_DIRECTIONS |
-| [Notes](https://mermaid.js.org/syntax/stateDiagram.html#notes) | note left of \| right of {id} : text. | implemented | src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render |
-| [Composite states](https://mermaid.js.org/syntax/stateDiagram.html#composite-states) | state X { ... } nests a state machine inside a state. | **not** implemented | MermaidState has no child-state slot, so there is nothing in the data model to nest. Adding it would change the public type. |
-| [Choice](https://mermaid.js.org/syntax/stateDiagram.html#choice) | state X <<choice>> models a branch point. | **not** implemented | Not represented in the data model; a LinkML schema expresses the same thing as guarded transitions, which are supported. |
-| [Forks](https://mermaid.js.org/syntax/stateDiagram.html#forks) | state X <<fork>> / <<join>> model concurrent splits. | **not** implemented | Not represented in the data model. |
+| [States](https://mermaid.js.org/syntax/stateDiagram.html#states) | A state is declared bare or with a description after a colon. | implemented | src/linkml\_mermaid/state\_diagram.py::StateDiagramRenderer.render |
+| [Spaces in state names](https://mermaid.js.org/syntax/stateDiagram.html#spaces-in-state-names) | A state whose description contains spaces is defined with an id first: state "description" as id. | implemented | src/linkml\_mermaid/state\_diagram.py::to\_state\_id |
+| [Transitions](https://mermaid.js.org/syntax/stateDiagram.html#transitions) | From --&#62; To, optionally with : text. | implemented | src/linkml\_mermaid/state\_diagram.py::StateDiagramRenderer.render |
+| [Start and End](https://mermaid.js.org/syntax/stateDiagram.html#start-and-end) | [\*] denotes the start and end pseudo-states. | implemented | src/linkml\_mermaid/state\_diagram.py::StateDiagramRenderer.render |
+| [Setting the direction of the diagram](https://mermaid.js.org/syntax/stateDiagram.html#setting-the-direction-of-the-diagram) | direction TB \| BT \| RL \| LR. TD is not documented for state diagrams. | implemented | src/linkml\_mermaid/state\_diagram.py::STATE\_DIAGRAM\_DIRECTIONS |
+| [Notes](https://mermaid.js.org/syntax/stateDiagram.html#notes) | note left of \| right of &#123;id&#125; : text. | implemented | src/linkml\_mermaid/state\_diagram.py::StateDiagramRenderer.render |
+| [Composite states](https://mermaid.js.org/syntax/stateDiagram.html#composite-states) | state X &#123; ... &#125; nests a state machine inside a state. | **not** implemented | MermaidState has no child-state slot, so there is nothing in the data model to nest. Adding it would change the public type. |
+| [Choice](https://mermaid.js.org/syntax/stateDiagram.html#choice) | state X &#60;&#60;choice&#62;&#62; models a branch point. | **not** implemented | Not represented in the data model; a LinkML schema expresses the same thing as guarded transitions, which are supported. |
+| [Forks](https://mermaid.js.org/syntax/stateDiagram.html#forks) | state X &#60;&#60;fork&#62;&#62; / &#60;&#60;join&#62;&#62; model concurrent splits. | **not** implemented | Not represented in the data model. |
 | [Concurrency](https://mermaid.js.org/syntax/stateDiagram.html#concurrency) | -- separates concurrent regions inside a composite state. | **not** implemented | Depends on composite states, which are not implemented. |
 | [Styling with classDefs](https://mermaid.js.org/syntax/stateDiagram.html#styling-with-classdefs) | classDef and class statements style states. | **not** implemented | Styling is a presentation concern the caller can append to the rendered output. |
 
@@ -62,12 +62,12 @@ it. The hash recorded below is of the exact text that was read.
 
 | Clause | Requirement | Status | Implementation |
 | :--- | :--- | :--- | :--- |
-| [4.10 Tables (extension)](https://github.github.com/gfm/#tables-extension-) | Header row, delimiter row, data rows; cells delimited by pipes. | implemented | src/linkml_mermaid/markdown_table.py::MarkdownTableRenderer.render |
-| [4.10 Tables (extension)](https://github.github.com/gfm/#tables-extension-) | A leading or trailing colon in the delimiter row sets left, right or centre alignment. | implemented | src/linkml_mermaid/types.py::COLUMN_ALIGNMENTS |
-| [4.10 Tables (extension)](https://github.github.com/gfm/#tables-extension-) | A pipe in cell content must be escaped, including inside other inline spans. | implemented | src/linkml_mermaid/escaping.py::escape_table_cell |
-| [4.10 Tables (extension)](https://github.github.com/gfm/#tables-extension-) | A cell holds inline content only; the table ends at the first blank line or block structure. | implemented | src/linkml_mermaid/escaping.py::escape_table_cell |
-| [6.3 Code spans](https://github.github.com/gfm/#code-spans) | Backtick-delimited inline code. | implemented | src/linkml_mermaid/markdown_table.py::_FORMATTERS |
-| [6.4 Emphasis and strong emphasis](https://github.github.com/gfm/#emphasis-and-strong-emphasis) | *text* is emphasis, **text** is strong emphasis. | implemented | src/linkml_mermaid/markdown_table.py::_FORMATTERS |
+| [4.10 Tables (extension)](https://github.github.com/gfm/#tables-extension-) | Header row, delimiter row, data rows; cells delimited by pipes. | implemented | src/linkml\_mermaid/markdown\_table.py::MarkdownTableRenderer.render |
+| [4.10 Tables (extension)](https://github.github.com/gfm/#tables-extension-) | A leading or trailing colon in the delimiter row sets left, right or centre alignment. | implemented | src/linkml\_mermaid/types.py::COLUMN\_ALIGNMENTS |
+| [4.10 Tables (extension)](https://github.github.com/gfm/#tables-extension-) | A pipe in cell content must be escaped, including inside other inline spans. | implemented | src/linkml\_mermaid/escaping.py::escape\_table\_cell |
+| [4.10 Tables (extension)](https://github.github.com/gfm/#tables-extension-) | A cell holds inline content only; the table ends at the first blank line or block structure. | implemented | src/linkml\_mermaid/escaping.py::escape\_table\_cell |
+| [6.3 Code spans](https://github.github.com/gfm/#code-spans) | Backtick-delimited inline code. | implemented | src/linkml\_mermaid/markdown\_table.py::\_FORMATTERS |
+| [6.4 Emphasis and strong emphasis](https://github.github.com/gfm/#emphasis-and-strong-emphasis) | \*text\* is emphasis, \*\*text\*\* is strong emphasis. | implemented | src/linkml\_mermaid/markdown\_table.py::\_FORMATTERS |
 
 ## LinkML — Annotations
 
@@ -79,7 +79,7 @@ it. The hash recorded below is of the exact text that was read.
 
 | Clause | Requirement | Status | Implementation |
 | :--- | :--- | :--- | :--- |
-| [Annotations](https://linkml.io/linkml/schemas/annotations.html#annotations) | Annotations are arbitrary key-value pairs attached to schema elements. | implemented | src/linkml_mermaid/reader.py::SchemaReader |
+| [Annotations](https://linkml.io/linkml/schemas/annotations.html#annotations) | Annotations are arbitrary key-value pairs attached to schema elements. | implemented | src/linkml\_mermaid/reader.py::SchemaReader |
 
 ## Summary
 
