@@ -489,7 +489,9 @@ class TestFullDiagramGrammarCompliance:
         # Per spec:
         # - Line 0: stateDiagram-v2
         # - [*] --> Open  (§Start and End — Open is initial)
-        # - No label line (label == id for both states)
+        # - Bare id declaration per §States form (1), because label == id
+        #   leaves nothing to show; declaring every state keeps one that
+        #   takes part in no transition from vanishing.
         # - Open --> Closed : Close  (§Transitions — labeled)
         # - Closed --> [*]  (§Start and End — Closed is terminal)
         expected = "\n".join(
@@ -497,12 +499,38 @@ class TestFullDiagramGrammarCompliance:
                 "stateDiagram-v2",
                 "    [*] --> Open",
                 "",
+                "    Open",
+                "    Closed",
                 "    Open --> Closed : Close",
                 "",
                 "    Closed --> [*]",
             ]
         )
         assert output == expected
+
+    def test_an_isolated_state_is_still_declared(self):
+        """A state with no distinct label and no transition must appear.
+
+        Nothing else in the output would mention it, so omitting the
+        declaration dropped it from the diagram silently.  Attaching a
+        note to such a state produced text that parsed but would not
+        render.
+        """
+        output = StateDiagramRenderer().render(
+            [MermaidState(id="Connected"), MermaidState(id="Orphan")],
+            [],
+        )
+        assert "    Connected" in output.split("\n")
+        assert "    Orphan" in output.split("\n")
+
+    def test_a_labelled_state_is_declared_once(self):
+        """The label form already declares the state; adding a bare line
+        as well would declare it twice."""
+        output = StateDiagramRenderer().render(
+            [MermaidState(id="Review", label="Content Review")], []
+        )
+        lines = [line for line in output.split("\n") if "Review" in line]
+        assert lines == ["    Review : Content Review"]
 
     def test_expected_output_with_labels(self):
         """When label ≠ id, the colon form MUST appear per §States."""

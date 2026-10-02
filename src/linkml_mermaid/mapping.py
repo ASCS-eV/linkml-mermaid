@@ -154,6 +154,37 @@ def _state_mermaid_id(state: Any, config: StateDiagramConfig) -> str:
     return to_state_id(str(raw_id))
 
 
+def _build_state_id_map(
+    states: Sequence[Any],
+    config: StateDiagramConfig,
+) -> dict[str, str]:
+    """Map each source state id to its Mermaid id, rejecting collisions.
+
+    :func:`~linkml_mermaid.state_diagram.to_state_id` strips every
+    non-alphanumeric character, so distinct source ids such as
+    ``IN_REVIEW``, ``In Review`` and ``in.review`` all converge on
+    ``InReview``.  Left undetected, the states merge into a single node
+    and every transition between them becomes a self-loop carrying
+    contradictory labels — a diagram that renders perfectly well and is
+    silently wrong.
+    """
+    id_map: dict[str, str] = {}
+    origins: dict[str, str] = {}
+    for s in states:
+        raw = str(_get(s, config.state_id_slot))
+        mermaid_id = _state_mermaid_id(s, config)
+        previous = origins.get(mermaid_id)
+        if previous is not None and previous != raw:
+            raise ValueError(
+                f"States {previous!r} and {raw!r} both map to the Mermaid state id "
+                f"{mermaid_id!r}; they would merge into one node. Give them ids that "
+                "differ by more than punctuation or letter case."
+            )
+        origins[mermaid_id] = raw
+        id_map[raw] = mermaid_id
+    return id_map
+
+
 def map_states(
     states: Sequence[Any],
     config: StateDiagramConfig,
@@ -167,8 +198,10 @@ def map_states(
     whose ``state_terminal_slot`` is truthy get ``is_terminal=True``.
 
     Raises:
-        ValueError: If a state carries no value for ``state_id_slot``.
+        ValueError: If a state carries no value for ``state_id_slot``,
+            or if two states would produce the same Mermaid id.
     """
+    _build_state_id_map(states, config)
     result: list[MermaidState] = []
     for s in states:
         label = _get(s, config.state_label_slot) or _get(s, config.state_id_slot)
@@ -216,13 +249,13 @@ def map_transitions(
 
     Raises:
         ValueError: If a transition references a state id that is absent
-            from *states*.  Emitting a placeholder would produce a
-            diagram that renders but is silently wrong.
+            from *states*, if two states collide on one Mermaid id, or
+            if a transition names a guard id that is absent from
+            *guards*.  Emitting a placeholder would produce a diagram
+            that renders but is silently wrong.
     """
     # Build lookup: state enum ID → MermaidState.id (PascalCase)
-    state_id_map: dict[str, str] = {}
-    for s in states:
-        state_id_map[str(_get(s, config.state_id_slot))] = _state_mermaid_id(s, config)
+    state_id_map = _build_state_id_map(states, config)
 
     # Build lookup: guard ID → display name
     guard_label_map: dict[str, str] = {}
@@ -264,7 +297,11 @@ def map_transitions(
             guard_labels = [guard_label_map.get(gid, f"{{{gid}}}") for gid in guard_ids]
             if guard_labels:
                 sep = config.guard_separator
-                label += sep + sep.join(guard_labels)
+                # Only separate from a name that is actually there: a
+                # transition with guards but no name would otherwise
+                # start with a blank line.
+                parts = ([label] if label else []) + guard_labels
+                label = sep.join(parts)
 
         result.append(MermaidTransition(from_id, to_id, label or None))
 

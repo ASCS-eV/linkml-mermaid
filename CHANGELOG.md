@@ -52,12 +52,24 @@ First public release.
 - **Command-line interface** — `linkml-mermaid diagram` and `linkml-mermaid table` render a
   schema plus instance data without writing any Python
 
-- **Escaping helpers** — `escape_mermaid_text`, `escape_state_label` and `escape_table_cell`
-  are public, so callers composing their own output can reuse the rules the renderers use
+- **Escaping helpers** — `escape_mermaid_text`, `escape_state_label`, `escape_state_inline`,
+  `escape_subgraph_title`, `escape_table_cell`, `escape_table_code_cell` and
+  `code_span_delimiter` are public, so callers composing their own output can reuse the rules
+  the renderers use
+
+- **Identifier validation** — `validate_flowchart_id` and `validate_state_id` reject an
+  identifier either Mermaid grammar would not read as a single token. Every type that carries
+  an id (`MermaidState`, `MermaidTransition`, `MermaidNote`, `FlowchartNode`, `FlowchartEdge`,
+  `FlowchartSubgraph`) checks its own on construction
 
 - **Standards compliance record** — `docs/standards/` pins every specification by SHA-256 and
   maps each implemented clause to the code and the test that prove it, including the clauses
   deliberately not implemented. `scripts/check_standards.py` enforces this in CI.
+
+- **Conformance tests against the real parsers** — rendered diagrams are handed to the actual
+  Mermaid package and rendered tables to cmark-gfm, the library behind GitHub's own Markdown.
+  Both run in CI, and each suite includes a calibration class that fails if the oracle stops
+  rejecting input it must reject.
 
 ### Notes on strictness
 
@@ -66,6 +78,30 @@ shape, cell format, column alignment or state-diagram direction raises `ValueErr
 transition that references a state which does not exist, a subgraph that lists an undeclared
 member, and a state label that contains no identifier characters.
 
+Identifiers are the one caller-supplied value emitted unquoted, because that is the only form
+the grammars accept, so they are validated instead of escaped. Flowchart ids accept
+`[A-Za-z0-9_.-]` and state ids `[A-Za-z0-9_.]`; a flowchart id may not contain `--` or `-.`,
+which begin a link operator. This is not cosmetic: an id of `A --> Evil` or `A---B` produced a
+*valid* diagram containing a node and an edge the caller never asked for, a defect no
+"does it parse" check could catch. Put text that needs spaces or punctuation in the label,
+which is quoted and escaped; `to_state_id()` converts a label into a usable id.
+
+A table cell holds **literal text**. GFM §4.10 specifies that inlines are parsed inside a cell,
+so every character that could open an inline construct is escaped and the value is displayed
+verbatim. Styling comes from `ColumnDef.format` alone. Cells rendered as code spans take a
+separate path, because GFM §2.4 states that backslash escapes do not work inside one.
+
 Every label, cell and title passes through the escaping layer, so characters that would
-otherwise terminate a Mermaid string or split a GFM table cell — `"`, `#`, `|`, and backslash
-runs before a pipe — are encoded rather than emitted raw.
+otherwise terminate a Mermaid string, split a GFM table cell, or change the meaning of either —
+`"`, `#`, `:`, `;`, `|`, backslashes, a bare `www.` token and the `direction` keyword in a
+subgraph title — are encoded rather than emitted raw.
+
+The `;` escape is specific to `stateDiagram-v2`, where `;` ends a statement. That is not in the
+Mermaid documentation; it was found by handing the real parser a state label of
+`do x; then A --> B`, which it accepted by silently adding two states and a transition. Unlike
+the colon it applies to the quoted `state "..." as id` form as well. The flowchart grammar
+quotes its label positions and needs no equivalent escape, which was confirmed by rendering.
+
+One known limit is documented rather than worked around: GFM's autolink extension linkifies a
+bare email address in a table cell, and no escaping suppresses it. Every other value is
+displayed verbatim.

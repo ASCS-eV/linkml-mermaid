@@ -45,6 +45,7 @@ dev = [
     "types-PyYAML>=6.0",
     "build>=1.0",
     "twine>=5.0",
+    "cmarkgfm>=2025.10.22",
 ]
 
 [project.urls]

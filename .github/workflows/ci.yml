@@ -88,6 +88,49 @@ jobs:
         continue-on-error: true
         run: uv run python scripts/check_standards.py --verify-hashes
 
+  conformance:
+    name: Conformance against the real parsers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: |
+          uv sync --locked --group dev
+          pnpm install --frozen-lockfile
+
+      # The rest of the suite checks that the renderers produce the text
+      # we intend, which cannot catch a misreading of a specification:
+      # the expected strings would encode the same misreading. These two
+      # files hand the output to the software the specifications
+      # describe -- Mermaid itself, and cmark-gfm, which GitHub's own
+      # Markdown rendering is built on.
+      - name: Conformance tests (Mermaid parser + cmark-gfm)
+        # LINKML_MERMAID_REQUIRE_ORACLES turns the "tool not installed"
+        # skip into a failure. Without it a missing Node or cmark-gfm
+        # would quietly skip the entire suite and still report green,
+        # which is the one outcome this job exists to prevent.
+        env:
+          LINKML_MERMAID_REQUIRE_ORACLES: "1"
+        run: >
+          uv run pytest
+          tests/test_mermaid_conformance.py
+          tests/test_gfm_conformance.py
+          -q -rs --no-header
+
   wheel:
     name: Build and verify distributions
     runs-on: ubuntu-latest

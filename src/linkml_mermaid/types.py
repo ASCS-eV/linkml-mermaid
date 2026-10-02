@@ -21,7 +21,147 @@ GitHub Flavored Markdown (GFM) table extension — §4.10
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+
+# ── Identifier validation ────────────────────────────────────────────
+#
+# Identifiers are interpolated into the diagram source unquoted, because
+# that is the only form the grammars accept.  An unvalidated identifier
+# is therefore not merely a rendering risk but an injection vector: an
+# id of ``"A --> Evil"`` produces a *valid* diagram containing a node and
+# an edge the caller never asked for, so the defect cannot be caught by
+# checking that the output parses.
+#
+# The accepted character sets below were established by feeding
+# candidate identifiers to the Mermaid parser, one character at a time,
+# and keeping only those both grammars accept in both a declaration and
+# a reference.  Flowchart ids additionally accept "-"; state ids do not,
+# because the state grammar reads it as the start of an arrow.
+#
+# A single "-" between other characters is safe in a flowchart id, which
+# matters because kebab-case is a common naming style.  What is not safe
+# is a "-" followed by another "-" or by ".", because those begin the
+# link operators "---", "-->", "-.-" and "-.->": an id of "A---B" draws
+# two nodes joined by a link rather than one node called "A---B".  The
+# lookahead rejects exactly those two sequences, which was confirmed to
+# reject every hyphen pattern the parser mishandles and no other.
+
+_FLOWCHART_ID_RE = re.compile(r"\A(?!.*-[-.])[A-Za-z0-9_.-]+\Z")
+_STATE_ID_RE = re.compile(r"\A[A-Za-z0-9_.]+\Z")
+
+# Words the respective lexers claim for their own grammar.  Each list was
+# derived by sweeping a corpus of every keyword in both grammars through
+# the real parser in all four positions the renderers emit — flowcharts:
+# node declaration, bare declaration, edge endpoint and subgraph id;
+# state diagrams: bare declaration, "id : label", 'state "label" as id'
+# and transition endpoint — and keeping the words that broke any of
+# them.  Words that merely look reserved (``direction``, ``End``,
+# ``TB``, ``LR``, ``o``, ``x``, ``as``) parse cleanly in every position
+# and are deliberately accepted: rejecting them would turn working
+# caller code into an exception for no reason.
+#
+# ``stateDiagram-v2`` also breaks, but the hyphen already puts it
+# outside the state identifier character set, so it cannot reach here.
+FLOWCHART_RESERVED_IDS = frozenset(
+    {
+        "_blank",
+        "_parent",
+        "_self",
+        "_top",
+        "call",
+        "class",
+        "classDef",
+        "click",
+        "default",
+        "end",
+        "flowchart",
+        "graph",
+        "href",
+        "interpolate",
+        "linkStyle",
+        "style",
+        "subgraph",
+    }
+)
+STATE_RESERVED_IDS = frozenset(
+    {
+        "class",
+        "classDef",
+        "click",
+        "default",
+        "href",
+        "note",
+        "state",
+        "stateDiagram",
+        "style",
+    }
+)
+
+# §Start and End — "written with the [*] syntax".  The renderer emits
+# these from the is_initial/is_terminal flags, but a caller may also
+# name the pseudo-state directly as a transition endpoint.
+START_END_PSEUDO_STATE = "[*]"
+
+
+def validate_flowchart_id(value: str, field_name: str) -> str:
+    """Return *value* if it is a usable flowchart identifier.
+
+    Raises:
+        ValueError: If *value* is empty, contains a character outside
+            ``[A-Za-z0-9_.-]``, or is a word the flowchart lexer
+            reserves.  Rejecting is deliberate: Mermaid would otherwise
+            accept many of these and silently render a different diagram
+            from the one requested.
+    """
+    if not isinstance(value, str) or not _FLOWCHART_ID_RE.match(value):
+        raise ValueError(
+            f"Invalid flowchart {field_name} {value!r}: an identifier must be one or more "
+            "of the characters A-Z a-z 0-9 _ . - and may not contain '--' or '-.', which "
+            "begin a link operator.  "
+            "Put spaces and punctuation in the label instead, which is quoted and escaped."
+        )
+    if value in FLOWCHART_RESERVED_IDS:
+        raise ValueError(
+            f"Invalid flowchart {field_name} {value!r}: the Mermaid flowchart grammar "
+            f"reserves this word; reserved words are {sorted(FLOWCHART_RESERVED_IDS)}"
+        )
+    return value
+
+
+def validate_state_id(value: str, field_name: str, *, allow_pseudo_state: bool = False) -> str:
+    """Return *value* if it is a usable ``stateDiagram-v2`` identifier.
+
+    Parameters:
+        allow_pseudo_state: Permit the literal ``[*]`` defined in
+            §Start and End.  Enabled for transition endpoints, where the
+            pseudo-state is a legal target, and disabled for state
+            declarations, where it is not.
+
+    Raises:
+        ValueError: If *value* is empty, contains a character outside
+            ``[A-Za-z0-9_.]``, or is a word the state grammar reserves.
+    """
+    if allow_pseudo_state and value == START_END_PSEUDO_STATE:
+        return value
+    if not isinstance(value, str) or not _STATE_ID_RE.match(value):
+        hint = (
+            f" or the pseudo-state '{START_END_PSEUDO_STATE}'"
+            if allow_pseudo_state
+            else " Use the label for text that needs spaces or punctuation."
+        )
+        raise ValueError(
+            f"Invalid state {field_name} {value!r}: an identifier must be one or more of "
+            f"the characters A-Z a-z 0-9 _ .{hint}  "
+            "to_state_id() converts a human-readable label into a valid id."
+        )
+    if value in STATE_RESERVED_IDS:
+        raise ValueError(
+            f"Invalid state {field_name} {value!r}: the Mermaid stateDiagram-v2 grammar "
+            f"reserves this word; reserved words are {sorted(STATE_RESERVED_IDS)}"
+        )
+    return value
+
 
 # ── stateDiagram-v2 primitives ───────────────────────────────────────
 #
@@ -71,6 +211,9 @@ class MermaidState:
     is_initial: bool = False
     is_terminal: bool = False
 
+    def __post_init__(self) -> None:
+        validate_state_id(self.id, "id")
+
 
 # Spec §Transitions  — …#transitions
 #   "Transitions are path/edges when one state passes into another.
@@ -100,12 +243,20 @@ class MermaidTransition:
     to_state: str
     label: str | None = None
 
+    def __post_init__(self) -> None:
+        validate_state_id(self.from_state, "from_state", allow_pseudo_state=True)
+        validate_state_id(self.to_state, "to_state", allow_pseudo_state=True)
+
 
 # Spec §Notes  — …#notes
 #   "Here you can choose to put the note to the right of or to the
 #    left of a node."
 #
 # Syntax:  note right of StateId : text
+
+# The two positions §Notes defines.  Mermaid has no fallback for any
+# other word: it is a lexical error.
+NOTE_POSITIONS = frozenset({"left", "right"})
 
 
 @dataclass(frozen=True)
@@ -120,11 +271,24 @@ class MermaidNote:
         state_id: The state ID to attach the note to.
         text: Note content.
         position: ``"right"`` (default) or ``"left"`` per §Notes.
+
+    Raises:
+        ValueError: If *state_id* is not a valid state identifier, or
+            *position* is not one of the two the grammar defines.  Any
+            other position is a lexical error in Mermaid rather than a
+            cosmetic difference, so it is rejected at construction.
     """
 
     state_id: str
     text: str
     position: str = "right"
+
+    def __post_init__(self) -> None:
+        validate_state_id(self.state_id, "state_id")
+        if self.position not in NOTE_POSITIONS:
+            raise ValueError(
+                f"Invalid note position '{self.position}'; must be one of {sorted(NOTE_POSITIONS)}"
+            )
 
 
 # ── Flowchart primitives ─────────────────────────────────────────────
@@ -218,6 +382,7 @@ class FlowchartNode:
     shape: str = "rect"
 
     def __post_init__(self) -> None:
+        validate_flowchart_id(self.id, "node id")
         if self.shape not in NODE_SHAPES:
             raise ValueError(
                 f"Invalid node shape '{self.shape}'; must be one of {sorted(NODE_SHAPES)}"
@@ -259,6 +424,8 @@ class FlowchartEdge:
     style: str = "solid"
 
     def __post_init__(self) -> None:
+        validate_flowchart_id(self.from_node, "edge from_node")
+        validate_flowchart_id(self.to_node, "edge to_node")
         if self.style not in LINK_STYLES:
             raise ValueError(
                 f"Invalid edge style '{self.style}'; must be one of {sorted(LINK_STYLES)}"
@@ -279,11 +446,20 @@ class FlowchartSubgraph:
             an explicit id for the subgraph."
         title: Display title. If *None*, uses ``id`` as title.
         node_ids: List of node IDs contained in this subgraph.
+
+    Raises:
+        ValueError: If *id* or any entry of *node_ids* is not a valid
+            flowchart identifier.
     """
 
     id: str
     title: str | None = None
     node_ids: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        validate_flowchart_id(self.id, "subgraph id")
+        for nid in self.node_ids:
+            validate_flowchart_id(nid, "subgraph member node id")
 
 
 # ── Markdown table primitives ────────────────────────────────────────

@@ -36,21 +36,93 @@ GFM §6.3 Code spans
     https://github.github.com/gfm/#code-spans
     `` `text` `` produces <code>text</code>.
     Used by the ``"code"`` column format option.
+    "The contents of the code span are the characters between the two
+     backtick strings" — so the delimiter length is chosen per value.
+
+GFM §2.4 Backslash escapes
+    https://github.github.com/gfm/#backslash-escapes
+    "Backslash escapes do not work in code blocks, code spans,
+     autolinks, or raw HTML."  The ``"code"`` format therefore uses a
+    different escaper from the other three.
 """
 
 from __future__ import annotations
 
-from .escaping import escape_table_cell
+import re
+
+from .escaping import (
+    code_span_delimiter,
+    escape_table_cell,
+    escape_table_code_cell,
+)
 from .types import COLUMN_ALIGNMENTS, ColumnDef, TableDef
 
-# Format wrappers for cell values, corresponding to GFM inline syntax.
-# See module-level docstring for spec references.
-_FORMATTERS: dict[str, str] = {
-    "plain": "{}",
-    "bold": "**{}**",  # GFM §6.4 — strong emphasis
-    "code": "`{}`",  # GFM §6.3 — code spans
-    "italic": "*{}*",  # GFM §6.4 — emphasis
+_NEWLINES_RE = re.compile(r"\r\n|\r|\n")
+
+# Format wrappers for the three formats that take escaped inline text.
+# "code" is absent: a code span needs a value-dependent delimiter and a
+# different escaper, so it is built by _render_code_cell instead.
+_INLINE_MARKERS: dict[str, str] = {
+    "bold": "**",  # GFM §6.4 — strong emphasis
+    "italic": "*",  # GFM §6.4 — emphasis
 }
+
+
+def _render_code_cell(raw: str) -> str:
+    """Wrap *raw* in one or more GFM §6.3 code spans.
+
+    Three properties of code spans drive this:
+
+    - The delimiter must be longer than any backtick run in the content,
+      or the span ends early (§6.3).
+    - A span whose content begins or ends with a space or a backtick
+      needs one space of padding.  §6.3 removes a single space from each
+      end when the content "both begins and ends with a space character,
+      but does not consist entirely of space characters", so the padding
+      is given back and the value survives intact.
+    - A code span cannot contain a line break, and raw HTML is not
+      parsed inside one, so a ``<br>`` placed *within* the span would be
+      displayed literally.  Multi-line values are therefore split into
+      one span per line, joined by ``<br>`` *between* the spans.
+
+    A line with no non-whitespace content produces no span at all. The
+    padding rule above is the one case §6.3 declines to undo, so such a
+    line would come back wider than it went in; it has nothing to show
+    in a table either way.
+    """
+    parts: list[str] = []
+    for line in _NEWLINES_RE.split(raw):
+        if not line.strip():
+            parts.append("")
+            continue
+        content = escape_table_code_cell(line)
+        fence = code_span_delimiter(content)
+        pad = " " if content[0] in "` " or content[-1] in "` " else ""
+        parts.append(f"{fence}{pad}{content}{pad}{fence}")
+    return "<br>".join(parts)
+
+
+def _render_cell(raw: str, fmt: str) -> str:
+    """Escape *raw* and apply the inline format *fmt* requested by the column."""
+    if raw == "":
+        return ""
+    if fmt == "code":
+        return _render_code_cell(raw)
+
+    escaped = escape_table_cell(raw)
+    marker = _INLINE_MARKERS.get(fmt)
+    if marker is None:
+        return escaped
+
+    # §6.4: a left-flanking delimiter run may not be followed by
+    # whitespace, nor a right-flanking run preceded by it, so emphasis
+    # around padded text silently renders as literal asterisks.  The
+    # padding is dropped, which is invisible in a table: §4.10 specifies
+    # that "spaces between pipes and cell content are trimmed" anyway.
+    inner = escaped.strip()
+    if not inner:
+        return escaped
+    return f"{marker}{inner}{marker}"
 
 
 class MarkdownTableRenderer:
@@ -89,12 +161,16 @@ class MarkdownTableRenderer:
         Each cell is pipe-delimited with leading and trailing pipes.
         The delimiter row encodes each column's alignment.
 
-        Header text and cell values are escaped per §4.10 — a ``|`` in
-        the content becomes ``\\|`` so it cannot be mistaken for a cell
-        delimiter, and newlines become ``<br>`` because a cell holds
-        inline content only.  Escaping happens *before* the inline
-        format wrapper is applied, so the wrapper's own ``*`` or
-        backtick characters are never touched.
+        Cell values and header text are treated as **literal text**: a
+        cell holds inline content in which "inlines are parsed" (§4.10),
+        so every character that could open an inline construct is
+        escaped and the caller's text is displayed verbatim.  Styling
+        comes from ``ColumnDef.format`` alone.  Newlines become ``<br>``
+        because a cell cannot span lines.
+
+        A value that is not a string is converted with :func:`str`, so a
+        row carrying an ``int`` or ``None`` renders rather than raising
+        deep inside the join.
         """
         # Header row  (GFM §4.10: first row is the header)
         header = "| " + " | ".join(escape_table_cell(c.header) for c in columns) + " |"
@@ -108,9 +184,8 @@ class MarkdownTableRenderer:
             cells: list[str] = []
             for col in columns:
                 raw = row.get(col.key, "")
-                fmt = _FORMATTERS[col.format]
-                # Only apply formatting to non-empty values
-                cells.append(fmt.format(escape_table_cell(raw)) if raw else raw)
+                text = raw if isinstance(raw, str) else ("" if raw is None else str(raw))
+                cells.append(_render_cell(text, col.format))
             data_lines.append("| " + " | ".join(cells) + " |")
 
         return "\n".join([header, separator, *data_lines])

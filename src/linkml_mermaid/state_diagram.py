@@ -81,7 +81,7 @@ from __future__ import annotations
 
 import re
 
-from .escaping import escape_state_label
+from .escaping import escape_state_inline, escape_state_label
 from .types import MermaidNote, MermaidState, MermaidTransition
 
 # Directions documented in §Setting the direction of the diagram.
@@ -206,12 +206,22 @@ class StateDiagramRenderer:
 
         lines.append("")
 
-        # §States — StateId : label  (colon form, only when needed)
+        # §States — every state is declared explicitly.
         #
-        # The colon form runs to the end of the line, so a label that
-        # itself contains a colon is ambiguous. §Spaces in state names
-        # documents the quoted alternative, which we switch to in that
-        # case: ``state "description" as id``.
+        # Three forms are documented; which one applies depends on the
+        # label:
+        #   * ``StateId : label`` (colon form) when there is a distinct
+        #     label to show.
+        #   * ``state "label" as StateId`` when that label contains a
+        #     colon, because the colon form runs to the end of the line
+        #     and would otherwise be ambiguous (§Spaces in state names).
+        #   * bare ``StateId`` otherwise.
+        #
+        # The bare form matters: a state that carries no distinct label
+        # and takes part in no transition would never be mentioned
+        # anywhere else, so omitting it would silently drop it from the
+        # diagram. Attaching a note to such a state produces output that
+        # parses but fails to render.
         for s in states:
             if s.label and s.label != s.id:
                 label = escape_state_label(s.label)
@@ -219,11 +229,17 @@ class StateDiagramRenderer:
                     lines.append(f'    state "{label}" as {s.id}')
                 else:
                     lines.append(f"    {s.id} : {label}")
+            else:
+                lines.append(f"    {s.id}")
 
         # §Transitions — FromState --> ToState : label
+        #
+        # The label is introduced by ":" and has no quoted form, so any
+        # colon it contains must be escaped — "::" would otherwise be
+        # read as the class-application operator.
         for t in transitions:
             if t.label:
-                label = escape_state_label(t.label)
+                label = escape_state_inline(t.label)
                 lines.append(f"    {t.from_state} --> {t.to_state} : {label}")
             else:
                 lines.append(f"    {t.from_state} --> {t.to_state}")
@@ -235,11 +251,14 @@ class StateDiagramRenderer:
                 lines.append(f"    {s.id} --> [*]")
 
         # §Notes — note {position} of {state_id} : {text}
+        #
+        # Like a transition label, the note body is introduced by ":"
+        # and cannot be quoted, so colons in the text are escaped.
         if notes:
             lines.append("")
             for n in notes:
                 lines.append(
-                    f"    note {n.position} of {n.state_id} : {escape_state_label(n.text)}"
+                    f"    note {n.position} of {n.state_id} : {escape_state_inline(n.text)}"
                 )
 
         return "\n".join(lines)

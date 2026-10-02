@@ -82,7 +82,7 @@ Mermaid Flowchart — full spec
 
 from __future__ import annotations
 
-from .escaping import escape_mermaid_text
+from .escaping import escape_mermaid_text, escape_subgraph_title
 from .types import FlowchartEdge, FlowchartNode, FlowchartSubgraph
 
 # Shape bracket syntax per §A node with text.
@@ -225,7 +225,7 @@ class FlowchartRenderer:
         # §Subgraphs — render subgraph blocks
         if subgraphs:
             for sg in subgraphs:
-                sg_title = escape_mermaid_text(sg.title or sg.id)
+                sg_title = escape_subgraph_title(sg.title or sg.id)
                 lines.append(f'    subgraph {sg.id}["{sg_title}"]')
                 for nid in sg.node_ids:
                     if nid in declared:

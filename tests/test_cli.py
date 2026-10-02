@@ -357,8 +357,12 @@ class TestCliFailures:
             "-r",
             "states",
         )
-        assert code == 1
-        assert "not found in schema" in err
+        # Exit 2 is this CLI's code for bad user input, and the message
+        # names both the schema and the class so the typo is actionable.
+        assert code == 2
+        assert "NoSuchClass" in err
+        assert str(SCHEMA.name) in err
+        assert "available classes" in err
 
     def test_no_subcommand_is_an_error(self):
         with pytest.raises(SystemExit) as exc:

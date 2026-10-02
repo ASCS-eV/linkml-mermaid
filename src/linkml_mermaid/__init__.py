@@ -69,7 +69,15 @@ __version__ = "0.1.0"
 
 # ── Public API ───────────────────────────────────────────────────────
 
-from .escaping import escape_mermaid_text, escape_state_label, escape_table_cell
+from .escaping import (
+    code_span_delimiter,
+    escape_mermaid_text,
+    escape_state_inline,
+    escape_state_label,
+    escape_subgraph_title,
+    escape_table_cell,
+    escape_table_code_cell,
+)
 from .flowchart import FlowchartRenderer
 from .mapping import (
     StateDiagramConfig,
@@ -89,8 +97,11 @@ from .state_diagram import (
 from .types import (
     CELL_FORMATS,
     COLUMN_ALIGNMENTS,
+    FLOWCHART_RESERVED_IDS,
     LINK_STYLES,
     NODE_SHAPES,
+    NOTE_POSITIONS,
+    STATE_RESERVED_IDS,
     ColumnDef,
     FlowchartEdge,
     FlowchartNode,
@@ -99,6 +110,8 @@ from .types import (
     MermaidState,
     MermaidTransition,
     TableDef,
+    validate_flowchart_id,
+    validate_state_id,
 )
 
 __all__ = [
@@ -132,9 +145,18 @@ __all__ = [
     "CELL_FORMATS",
     "COLUMN_ALIGNMENTS",
     "STATE_DIAGRAM_DIRECTIONS",
+    "NOTE_POSITIONS",
+    "FLOWCHART_RESERVED_IDS",
+    "STATE_RESERVED_IDS",
     # Utilities
     "to_state_id",
+    "validate_flowchart_id",
+    "validate_state_id",
     "escape_mermaid_text",
     "escape_state_label",
+    "escape_state_inline",
+    "escape_subgraph_title",
     "escape_table_cell",
+    "escape_table_code_cell",
+    "code_span_delimiter",
 ]

@@ -95,8 +95,25 @@
       "code": "src/linkml_mermaid/flowchart.py::FlowchartRenderer.render",
       "tests": [
         "tests/test_flowchart.py::TestFlowchartSubgraphs",
-        "tests/test_spec_regressions.py::TestSubgraphIntegrity"
-      ]
+        "tests/test_spec_regressions.py::TestSubgraphIntegrity",
+        "tests/test_escaping.py::TestEscapeSubgraphTitle",
+        "tests/test_mermaid_conformance.py::TestSubgraphTitles"
+      ],
+      "note": "The flowchart lexer matches the 'direction' keyword inside a quoted subgraph title, so the word is escaped there; the same text in a node or edge label needs no such treatment."
+    },
+    {
+      "id": "FLOW-ID-VALIDATION",
+      "standard": "mermaid-flowchart",
+      "clause": "A node (default)",
+      "anchor": "a-node-default",
+      "requirement": "A node is named by an identifier, which the renderer emits unquoted.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/types.py::validate_flowchart_id",
+      "tests": [
+        "tests/test_types_validation.py::TestFlowchartIdValidation",
+        "tests/test_mermaid_conformance.py::TestIdentifierInjection"
+      ],
+      "note": "Identifiers cannot be escaped, so they are validated instead. The accepted character set and the list of reserved words were both established by testing candidate identifiers against the Mermaid parser."
     },
     {
       "id": "STATE-STATES",
@@ -148,6 +165,20 @@
       ]
     },
     {
+      "id": "STATE-DECLARATION",
+      "standard": "mermaid-statediagram",
+      "clause": "States",
+      "anchor": "states",
+      "requirement": "A state may be declared as a bare id, as 'id : description', or as 'state \"description\" as id'. The renderer emits exactly one declaration per state, choosing the form the label requires.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render",
+      "tests": [
+        "tests/test_state_diagram.py::TestFullDiagramGrammarCompliance",
+        "tests/test_mermaid_conformance.py::TestStateLabels"
+      ],
+      "note": "Every state is declared, including one whose label equals its id. Such a state is mentioned nowhere else in the output, so omitting the bare-id line dropped it from the diagram silently; with a note attached the result parsed but failed to render."
+    },
+    {
       "id": "STATE-DIRECTION",
       "standard": "mermaid-statediagram",
       "clause": "Setting the direction of the diagram",
@@ -168,9 +199,53 @@
       "implemented": true,
       "code": "src/linkml_mermaid/state_diagram.py::StateDiagramRenderer.render",
       "tests": [
-        "tests/test_state_diagram.py::TestStateDiagramNotes"
+        "tests/test_state_diagram.py::TestStateDiagramNotes",
+        "tests/test_mermaid_conformance.py::TestNoteText"
       ],
-      "note": "Only the single-line form. The multi-line 'note right of X\\n ... \\nend note' block form is not emitted."
+      "note": "Only the single-line form. The multi-line 'note right of X\\n ... \\nend note' block form is not emitted. The position is restricted to the two words the clause defines; any other value is a Mermaid lexical error."
+    },
+    {
+      "id": "STATE-COLON-ESCAPE",
+      "standard": "mermaid-statediagram",
+      "clause": "Transitions",
+      "anchor": "transitions",
+      "requirement": "A transition label and a note body are introduced by ':' and have no quoted form, so a colon in the text is read as grammar.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/escaping.py::escape_state_inline",
+      "tests": [
+        "tests/test_escaping.py::TestEscapeStateInline",
+        "tests/test_mermaid_conformance.py::TestNoteText",
+        "tests/test_mermaid_conformance.py::TestTransitionLabels"
+      ],
+      "note": "Verified against the Mermaid parser: '::' in a transition label is read as the class-application operator, and any colon in a note body is a parse error."
+    },
+    {
+      "id": "STATE-STATEMENT-SEPARATOR",
+      "standard": "mermaid-statediagram",
+      "clause": "States",
+      "anchor": "states",
+      "requirement": "';' separates statements, so text containing one is read as further diagram source rather than as part of the label.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/escaping.py::escape_state_label",
+      "tests": [
+        "tests/test_escaping.py::TestEscapeStateInline",
+        "tests/test_mermaid_conformance.py::TestStatementSeparator"
+      ],
+      "note": "The prose does not state this; it was derived from the parser, which accepted a label of 'do x; then A --> B' by silently adding two states and a transition the caller never asked for. Unlike the colon it also applies to the quoted 'state \"...\" as id' form, so it is escaped in every state text position; '#59;' was confirmed by render to draw as ';'. The flowchart grammar quotes its label positions and needs no equivalent escape - also proven by render."
+    },
+    {
+      "id": "STATE-ID-VALIDATION",
+      "standard": "mermaid-statediagram",
+      "clause": "States",
+      "anchor": "states",
+      "requirement": "A state is named by an identifier, which the renderer emits unquoted.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/types.py::validate_state_id",
+      "tests": [
+        "tests/test_types_validation.py::TestStateIdValidation",
+        "tests/test_mermaid_conformance.py::TestIdentifierInjection"
+      ],
+      "note": "Identifiers cannot be escaped, so they are validated instead: an id containing an arrow or a newline would otherwise inject extra states and transitions into an output that still parses."
     },
     {
       "id": "STATE-COMPOSITE",
@@ -251,8 +326,22 @@
       "code": "src/linkml_mermaid/escaping.py::escape_table_cell",
       "tests": [
         "tests/test_escaping.py::TestEscapeTableCell",
-        "tests/test_spec_regressions.py::TestTableCellEscaping"
+        "tests/test_spec_regressions.py::TestTableCellEscaping",
+        "tests/test_gfm_conformance.py::TestLiteralCellContract"
       ]
+    },
+    {
+      "id": "GFM-AUTOLINK-EXTENSION",
+      "standard": "gfm",
+      "clause": "6.9 Autolinks (extension)",
+      "anchor": "autolinks-extension",
+      "requirement": "A bare 'www.' token, a 'scheme://' URL and a bare email address are linkified without any active character being present.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/escaping.py::escape_table_cell",
+      "tests": [
+        "tests/test_gfm_conformance.py::TestAutolinkExtension"
+      ],
+      "note": "'scheme://' is defeated by the ':' escape. The 'www.' form contains no active character, so the dot after 'www' is escaped instead. The bare email form is a documented limit: in cmark-gfm neither backslash escaping nor a character reference suppresses it."
     },
     {
       "id": "GFM-TABLE-INLINE-ONLY",
@@ -271,23 +360,51 @@
       "standard": "gfm",
       "clause": "6.3 Code spans",
       "anchor": "code-spans",
-      "requirement": "Backtick-delimited inline code.",
+      "requirement": "Backtick-delimited inline code; the delimiter run must be longer than any backtick run in the content.",
       "implemented": true,
-      "code": "src/linkml_mermaid/markdown_table.py::_FORMATTERS",
+      "code": "src/linkml_mermaid/escaping.py::code_span_delimiter",
       "tests": [
-        "tests/test_markdown_table.py::TestTableFormatting"
+        "tests/test_markdown_table.py::TestTableFormatting",
+        "tests/test_gfm_conformance.py::TestCodeSpanDelimiters"
       ]
+    },
+    {
+      "id": "GFM-CODE-SPAN-PADDING",
+      "standard": "gfm",
+      "clause": "6.3 Code spans",
+      "anchor": "code-spans",
+      "requirement": "One space is stripped from each end of a span that both begins and ends with a space, unless the content consists entirely of spaces.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/markdown_table.py::MarkdownTableRenderer",
+      "tests": [
+        "tests/test_gfm_conformance.py::TestCodeSpanDelimiters"
+      ],
+      "note": "The renderer adds compensating padding so a value keeps its leading and trailing spaces, which matters for indented lines of multi-line code. The all-spaces carve-out is the one case the rule declines to undo, so such a value would come back wider than it went in; it emits no span at all instead."
     },
     {
       "id": "GFM-EMPHASIS",
       "standard": "gfm",
       "clause": "6.4 Emphasis and strong emphasis",
       "anchor": "emphasis-and-strong-emphasis",
-      "requirement": "*text* is emphasis, **text** is strong emphasis.",
+      "requirement": "*text* is emphasis, **text** is strong emphasis; a delimiter run adjacent to whitespace cannot open or close one.",
       "implemented": true,
-      "code": "src/linkml_mermaid/markdown_table.py::_FORMATTERS",
+      "code": "src/linkml_mermaid/markdown_table.py::_render_cell",
       "tests": [
-        "tests/test_markdown_table.py::TestTableFormatting"
+        "tests/test_markdown_table.py::TestTableFormatting",
+        "tests/test_gfm_conformance.py::TestEmphasisFlanking"
+      ]
+    },
+    {
+      "id": "GFM-BACKSLASH-ESCAPE",
+      "standard": "gfm",
+      "clause": "2.4 Backslash escapes",
+      "anchor": "backslash-escapes",
+      "requirement": "Any ASCII punctuation may be backslash-escaped, but backslash escapes do not work inside code spans.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/escaping.py::escape_table_code_cell",
+      "tests": [
+        "tests/test_escaping.py::TestEscapeTableCell",
+        "tests/test_gfm_conformance.py::TestLiteralCellContract"
       ]
     },
     {
@@ -302,6 +419,20 @@
         "tests/test_reader.py",
         "tests/test_vocab.py"
       ]
+    },
+    {
+      "id": "LINKML-INDUCED-SLOTS",
+      "standard": "linkml-annotations",
+      "clause": "Annotations",
+      "anchor": "annotations",
+      "requirement": "A class acquires slots from inline attributes, from named top-level slots, and by inheritance; annotations must be read from all three.",
+      "implemented": true,
+      "code": "src/linkml_mermaid/reader.py::SchemaReader._induced_slots",
+      "tests": [
+        "tests/test_reader.py::TestSlotStyles"
+      ],
+      "note": "Reading ClassDefinition.attributes alone sees only inline attributes, so a schema written in LinkML's top-level 'slots:' style, or one using 'is_a' inheritance, would silently expose no annotated slots at all."
     }
   ]
 }
+

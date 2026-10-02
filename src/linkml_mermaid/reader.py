@@ -32,13 +32,27 @@ LinkML class/slot model (§Classes, §Slots)
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
+from linkml_runtime.linkml_model.meta import SlotDefinition
 from linkml_runtime.utils.schemaview import SchemaView
 
 if TYPE_CHECKING:
     from .mapping import StateDiagramConfig
     from .types import ColumnDef
+
+
+def _annotation_value(annotations: Any, key: str) -> str | None:
+    """Read one annotation value, whichever container LinkML supplied.
+
+    ``get_class`` hands back annotations as a dict-like object, while
+    ``class_induced_slots`` hands back a ``JsonObj`` that has no
+    ``.get``.  Both support ``in`` and ``[]``, so those are used here;
+    reaching for ``.get`` is what makes the two paths diverge.
+    """
+    if annotations is None or key not in annotations:
+        return None
+    return cast("str | None", annotations[key].value)
 
 
 class SchemaReader:
@@ -100,9 +114,26 @@ class SchemaReader:
     # LinkML classes: https://linkml.io/linkml/schemas/models.html#classes
     # LinkML slots:   https://linkml.io/linkml/schemas/models.html#slots
     #
-    # Slots defined via ``attributes:`` are class-local (§The
-    # Attributes slot).  Both top-level slots and attributes carry
-    # ``description`` and ``range``.
+    # A class can acquire slots three ways: inline under ``attributes:``
+    # (§The Attributes slot), by naming a top-level slot under ``slots:``
+    # (§Slots), or by inheriting either from a parent via ``is_a``
+    # (§Inheritance).  ``ClassDefinition.attributes`` holds only the
+    # first, so every lookup here goes through
+    # ``SchemaView.class_induced_slots``, which returns the full
+    # effective set with inherited annotations and ranges applied.
+    #
+    # SchemaView ref:
+    #   https://linkml.io/linkml/developers/schemaview.html
+
+    def _induced_slots(self, class_name: str) -> dict[str, SlotDefinition]:
+        """Return ``{slot_name: slot}`` for every slot a class actually has.
+
+        Covers ``attributes:``, top-level ``slots:`` and anything
+        inherited through ``is_a``; returns ``{}`` for an unknown class.
+        """
+        if self._sv.get_class(class_name) is None:
+            return {}
+        return {s.name: s for s in self._sv.class_induced_slots(class_name)}
 
     def class_description(self, class_name: str) -> str:
         """Return the description of a class.
@@ -117,10 +148,8 @@ class SchemaReader:
 
         LinkML ref: https://linkml.io/linkml/schemas/models.html#the-attributes-slot
         """
-        cls = self._sv.get_class(class_name)
-        if cls and slot_name in cls.attributes:
-            return cast(str | None, cls.attributes[slot_name].description)
-        return None
+        slot = self._induced_slots(class_name).get(slot_name)
+        return cast("str | None", slot.description) if slot else None
 
     def slot_range(self, class_name: str, slot_name: str) -> str | None:
         """Return a slot's range within a class, or *None*.
@@ -128,10 +157,8 @@ class SchemaReader:
         The ``range`` constrains what values the slot can take.
         LinkML ref: https://w3id.org/linkml/range
         """
-        cls = self._sv.get_class(class_name)
-        if cls and slot_name in cls.attributes:
-            return cast(str | None, cls.attributes[slot_name].range)
-        return None
+        slot = self._induced_slots(class_name).get(slot_name)
+        return cast("str | None", slot.range) if slot else None
 
     # ── Annotation helpers ───────────────────────────────────────────
     #
@@ -153,8 +180,7 @@ class SchemaReader:
         """
         cls = self._sv.get_class(class_name)
         if cls and cls.annotations:
-            ann = cls.annotations.get(key)
-            return ann.value if ann else None
+            return _annotation_value(cls.annotations, key)
         return None
 
     def enum_annotation(self, enum_name: str, key: str) -> str | None:
@@ -164,8 +190,7 @@ class SchemaReader:
         """
         enum_def = self._sv.get_enum(enum_name)
         if enum_def and enum_def.annotations:
-            ann = enum_def.annotations.get(key)
-            return ann.value if ann else None
+            return _annotation_value(enum_def.annotations, key)
         return None
 
     def slot_annotation(self, class_name: str, slot_name: str, key: str) -> str | None:
@@ -175,13 +200,10 @@ class SchemaReader:
         "The LinkML metamodel has a generic annotations slot that can be
          used to assign arbitrary tags and values to any schema element."
         """
-        cls = self._sv.get_class(class_name)
-        if cls and slot_name in cls.attributes:
-            slot_def = cls.attributes[slot_name]
-            if slot_def.annotations:
-                ann = slot_def.annotations.get(key)
-                return ann.value if ann else None
-        return None
+        slot_def = self._induced_slots(class_name).get(slot_name)
+        if slot_def is None:
+            return None
+        return _annotation_value(slot_def.annotations, key)
 
     # ── Auto-discovery ───────────────────────────────────────────────
     #
@@ -196,16 +218,16 @@ class SchemaReader:
 
         Example: on State class with ``id: annotations: {mermaid_role: state_id}``
         returns ``{"state_id": "id"}``.
+
+        Considers every slot the class effectively has, so a schema that
+        declares its slots at the top level or inherits them via ``is_a``
+        is discovered the same as one using inline ``attributes:``.
         """
-        cls = self._sv.get_class(class_name)
-        if not cls:
-            return {}
         result: dict[str, str] = {}
-        for slot_name, slot_def in cls.attributes.items():
-            if slot_def.annotations:
-                ann = slot_def.annotations.get(key)
-                if ann:
-                    result[ann.value] = slot_name
+        for slot_name, slot_def in self._induced_slots(class_name).items():
+            value = _annotation_value(slot_def.annotations, key)
+            if value is not None:
+                result[value] = slot_name
         return result
 
     def discover_state_diagram_config(self, workflow_class: str) -> StateDiagramConfig:
@@ -326,7 +348,9 @@ class SchemaReader:
         The annotation value format is ``"Header"`` or ``"Header|format"``
         where format is one of: plain, bold, code, italic.
 
-        Columns are returned in slot declaration order.
+        Columns are returned in slot declaration order.  Slots declared
+        inline under ``attributes:``, referenced from top-level
+        ``slots:``, and inherited via ``is_a`` are all considered.
 
         Parameters:
             class_name: Name of the LinkML class to scan.
@@ -348,13 +372,10 @@ class SchemaReader:
             raise ValueError(f"Class '{class_name}' not found in schema")
 
         columns: list[ColumnDef] = []
-        for slot_name, slot_def in cls.attributes.items():
-            if not slot_def.annotations:
+        for slot_name, slot_def in self._induced_slots(class_name).items():
+            value = _annotation_value(slot_def.annotations, TABLE_COLUMN)
+            if value is None:
                 continue
-            ann = slot_def.annotations.get(TABLE_COLUMN)
-            if not ann:
-                continue
-            value = ann.value
             if "|" in value:
                 header, fmt = value.rsplit("|", 1)
                 if fmt not in CELL_FORMATS:

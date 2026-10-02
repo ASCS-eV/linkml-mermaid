@@ -70,7 +70,8 @@
         "tables-extension": "#tables-extension-",
         "code-spans": "#code-spans",
         "emphasis-and-strong-emphasis": "#emphasis-and-strong-emphasis",
-        "backslash-escapes": "#backslash-escapes"
+        "backslash-escapes": "#backslash-escapes",
+    "autolinks-extension": "#autolinks-extension-"
       }
     },
     {

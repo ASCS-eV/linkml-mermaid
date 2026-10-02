@@ -1,0 +1,58 @@
+id: https://example.org/slot-styles
+name: slot_styles
+prefixes:
+  linkml: https://w3id.org/linkml/
+imports:
+  - linkml:types
+default_range: string
+
+# LinkML offers three ways to give a class a slot, and a schema author
+# may use any of them. This fixture uses all three at once so that a
+# reader which only looks at inline `attributes:` is detectably wrong.
+#
+# §Slots:       https://linkml.io/linkml/schemas/models.html#slots
+# §Inheritance: https://linkml.io/linkml/schemas/inheritance.html
+# §Annotations: https://linkml.io/linkml/schemas/annotations.html
+
+slots:
+  top_level_slot:
+    description: Declared at schema level and attached via the slots list.
+    range: string
+    annotations:
+      table_column: "Top Level"
+
+  inherited_slot:
+    description: Declared at schema level and reached through is_a.
+    range: integer
+    annotations:
+      table_column: "Inherited"
+
+  overridden_slot:
+    description: Base description that the subclass replaces.
+    range: string
+
+classes:
+  BaseThing:
+    description: Parent class contributing a slot through inheritance.
+    slots:
+      - inherited_slot
+      - overridden_slot
+
+  SlotStyles:
+    description: Uses all three slot declaration styles at once.
+    is_a: BaseThing
+    slots:
+      - top_level_slot
+    slot_usage:
+      overridden_slot:
+        description: Refined description supplied by the subclass.
+        range: integer
+        annotations:
+          table_column: "Overridden"
+    attributes:
+      inline_attribute:
+        description: Declared inline, the only style a naive reader sees.
+        range: string
+        annotations:
+          table_column: "Inline"
+

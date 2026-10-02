@@ -90,8 +90,44 @@ def collection(data: dict[str, Any], slot: str | None, what: str) -> list[Any]:
     return value
 
 
+def load_schema(path: Path) -> SchemaReader:
+    """Open a LinkML schema, converting loader failures into clean errors.
+
+    ``SchemaView`` surfaces a malformed schema as whatever the YAML
+    parser or the metamodel loader happened to raise, which would reach
+    the terminal as a traceback.  Every such failure is a problem with
+    the file the user named, so it is reported as a :class:`CliError`
+    that says which file failed and why.
+    """
+    try:
+        return SchemaReader(path)
+    except Exception as exc:
+        raise CliError(f"Cannot load LinkML schema '{path}': {exc}") from exc
+
+
+def require_class(reader: SchemaReader, schema: Path, class_name: str) -> None:
+    """Fail with a self-explanatory message if *class_name* is absent.
+
+    Looking up a missing class raises deep inside ``linkml_runtime``
+    with a message such as "name must be supplied" that names neither
+    the schema nor the class, leaving the user nothing to act on.
+    """
+    try:
+        found = reader.schema_view.get_class(class_name) is not None
+    except Exception as exc:
+        raise CliError(f"Cannot read class '{class_name}' from '{schema}': {exc}") from exc
+    if not found:
+        try:
+            available = sorted(reader.schema_view.all_classes())
+        except Exception:
+            available = []
+        hint = f"; available classes: {available}" if available else ""
+        raise CliError(f"Schema '{schema}' has no class named '{class_name}'{hint}")
+
+
 def render_diagram(args: argparse.Namespace) -> str:
-    reader = SchemaReader(args.schema)
+    reader = load_schema(args.schema)
+    require_class(reader, args.schema, args.class_name)
     config = reader.discover_state_diagram_config(args.class_name)
     data = load_data(args.data)
 
@@ -107,7 +143,8 @@ def render_diagram(args: argparse.Namespace) -> str:
 
 
 def render_table(args: argparse.Namespace) -> str:
-    reader = SchemaReader(args.schema)
+    reader = load_schema(args.schema)
+    require_class(reader, args.schema, args.class_name)
     columns: list[ColumnDef] = reader.discover_table_columns(args.class_name)
     data = load_data(args.data)
 
@@ -117,11 +154,21 @@ def render_table(args: argparse.Namespace) -> str:
 
 
 def write_output(text: str, destination: Path | None) -> None:
+    """Write the rendered text to *destination*, or to stdout if *None*.
+
+    Raises:
+        CliError: If the destination cannot be created or written.  The
+            path came from the user, so a permission or missing-device
+            failure is user input rather than a defect.
+    """
     if destination is None:
         sys.stdout.write(text + "\n")
         return
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(text + "\n", encoding="utf-8")
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(text + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise CliError(f"Cannot write output to '{destination}': {exc}") from exc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -225,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         output = args.handler(args)
+        write_output(output, args.output)
     except CliError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -232,7 +280,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
-    write_output(output, args.output)
     return 0
 
 

@@ -19,6 +19,8 @@ import pytest
 
 from linkml_mermaid import SchemaReader
 
+from .conftest import FIXTURES_DIR
+
 
 class TestEnumValues:
     """§Basic Enums: 'permissible_values' dict preserves insertion order.
@@ -273,3 +275,90 @@ class TestDiscoverTableColumns:
         """TrafficWorkflow has mermaid_role but no table_column annotations."""
         with pytest.raises(ValueError, match="no slots with"):
             reader.discover_table_columns("TrafficWorkflow")
+
+
+class TestSlotStyles:
+    """A class gets its slots in more than one way, and all of them count.
+
+    ``ClassDefinition.attributes`` holds only the slots written inline
+    under ``attributes:``.  It does not include slots attached through
+    the class's ``slots:`` list, nor any slot inherited via ``is_a``, nor
+    the refinements in ``slot_usage``.  A reader built on ``attributes``
+    alone therefore sees a fraction of the class and silently omits the
+    rest — no error, just missing columns.
+
+    ``SchemaView.class_induced_slots()`` returns the effective set with
+    inheritance and ``slot_usage`` already applied, which is what a
+    schema author means by "the slots of this class".
+
+    The fixture declares one slot in each style, so any regression to
+    the ``attributes``-only reading drops a specific, named column.
+
+    §Slots:       https://linkml.io/linkml/schemas/models.html#slots
+    §Inheritance: https://linkml.io/linkml/schemas/inheritance.html
+    """
+
+    @pytest.fixture
+    def styles_reader(self) -> SchemaReader:
+        return SchemaReader(FIXTURES_DIR / "slot_styles.yaml")
+
+    @pytest.mark.parametrize(
+        ("slot_name", "expected"),
+        [
+            ("inline_attribute", "Declared inline, the only style a naive reader sees."),
+            ("top_level_slot", "Declared at schema level and attached via the slots list."),
+            ("inherited_slot", "Declared at schema level and reached through is_a."),
+            ("overridden_slot", "Refined description supplied by the subclass."),
+        ],
+    )
+    def test_description_is_found_whatever_the_style(self, styles_reader, slot_name, expected):
+        assert styles_reader.slot_description("SlotStyles", slot_name) == expected
+
+    @pytest.mark.parametrize(
+        ("slot_name", "expected"),
+        [
+            ("inline_attribute", "string"),
+            ("top_level_slot", "string"),
+            ("inherited_slot", "integer"),
+            # slot_usage overrides the base range, so the induced value
+            # is the one the subclass asked for.
+            ("overridden_slot", "integer"),
+        ],
+    )
+    def test_range_is_found_whatever_the_style(self, styles_reader, slot_name, expected):
+        assert styles_reader.slot_range("SlotStyles", slot_name) == expected
+
+    @pytest.mark.parametrize(
+        ("slot_name", "expected"),
+        [
+            ("inline_attribute", "Inline"),
+            ("top_level_slot", "Top Level"),
+            ("inherited_slot", "Inherited"),
+            ("overridden_slot", "Overridden"),
+        ],
+    )
+    def test_annotation_is_found_whatever_the_style(self, styles_reader, slot_name, expected):
+        assert styles_reader.slot_annotation("SlotStyles", slot_name, "table_column") == expected
+
+    def test_discovery_finds_every_annotated_slot(self, styles_reader):
+        """The end-to-end proof: all four styles become columns.
+
+        Reading ``attributes`` alone would yield one column instead of
+        four, which is the regression this guards.  The relative order
+        of slots drawn from different styles is SchemaView's to decide,
+        so only membership is asserted here; ``TestDiscoverTableColumns``
+        covers declaration order within a single style.
+        """
+        cols = styles_reader.discover_table_columns("SlotStyles")
+        assert sorted(c.header for c in cols) == ["Inherited", "Inline", "Overridden", "Top Level"]
+        assert sorted(c.key for c in cols) == [
+            "inherited_slot",
+            "inline_attribute",
+            "overridden_slot",
+            "top_level_slot",
+        ]
+
+    def test_inherited_slots_are_not_lost_on_the_parent(self, styles_reader):
+        """The parent class still reports its own slots."""
+        assert styles_reader.slot_range("BaseThing", "inherited_slot") == "integer"
+        assert styles_reader.slot_range("BaseThing", "overridden_slot") == "string"
