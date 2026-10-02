@@ -1,4 +1,10 @@
+# esbuild ships a platform-specific binary that its postinstall script
+# links; without this, pnpm 10+ blocks the script and the VitePress build
+# fails with ERR_PNPM_IGNORED_BUILDS.
+#
+# `allowBuilds` is the pnpm 11 form; `onlyBuiltDependencies` is kept for
+# pnpm 10, which does not read the newer field.
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
 onlyBuiltDependencies:
   - esbuild
